@@ -1,0 +1,4 @@
+**/*.md
+tests/
+node_modules/
+.git/

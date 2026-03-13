@@ -1,0 +1,117 @@
+<script>
+/**
+ * Genere le HTML de la timeline de statut pour une demande
+ */
+function renderTimelineStatut(request) {
+  var steps = [
+    { label: 'Soumis', dateField: 'dateSubmit', status: 'Soumis' },
+    { label: 'Approuve N1', dateField: 'dateApprobation', status: 'Approuve N1' },
+    { label: 'Avis RH', dateField: 'dateAvisRh', status: 'avis_rh' },
+    { label: 'Decision finale', dateField: 'dateDecisionFinale', status: 'decision' }
+  ];
+
+  var currentStatut = request.statut;
+
+  // Determiner l'etat de chaque etape
+  var stepStates = getStepStates(currentStatut, request);
+
+  var html = '<div class="timeline">';
+
+  for (var i = 0; i < steps.length; i++) {
+    var step = steps[i];
+    var state = stepStates[i];
+    var dateValue = request[step.dateField];
+
+    html += '<div class="timeline-step">';
+    html += '<div class="timeline-dot ' + state.dotClass + '">';
+
+    if (state.dotClass === 'completed') {
+      html += '&#10003;';
+    } else if (state.dotClass === 'rejected') {
+      html += '&#10007;';
+    } else if (state.dotClass === 'current') {
+      html += '&#9679;';
+    } else {
+      html += (i + 1);
+    }
+
+    html += '</div>';
+    html += '<div class="timeline-label">' + step.label;
+
+    // Ajouter les details si pertinent
+    if (i === 2 && (currentStatut === 'Avis RH Favorable' || currentStatut === 'Avis RH Defavorable')) {
+      html += '<br><span class="text-sm">' + (request.avisRh || '') + '</span>';
+    }
+
+    html += '</div>';
+    html += '<div class="timeline-date">';
+    if (dateValue) {
+      html += formatDateDisplay(dateValue);
+    } else if (state.dotClass === 'current') {
+      html += 'En attente';
+    } else if (state.dotClass === '' || state.dotClass === undefined) {
+      html += '-';
+    }
+    html += '</div>';
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function getStepStates(statut, request) {
+  var states = [
+    { dotClass: '' },
+    { dotClass: '' },
+    { dotClass: '' },
+    { dotClass: '' }
+  ];
+
+  switch (statut) {
+    case 'Soumis':
+      states[0] = { dotClass: 'completed' };
+      states[1] = { dotClass: 'current' };
+      break;
+
+    case 'Approuve N1':
+      states[0] = { dotClass: 'completed' };
+      states[1] = { dotClass: 'completed' };
+      states[2] = { dotClass: 'current' };
+      break;
+
+    case 'Rejete N1':
+      states[0] = { dotClass: 'completed' };
+      states[1] = { dotClass: 'rejected' };
+      break;
+
+    case 'Avis RH Favorable':
+    case 'Avis RH Defavorable':
+      states[0] = { dotClass: 'completed' };
+      states[1] = { dotClass: 'completed' };
+      states[2] = { dotClass: 'completed' };
+      states[3] = { dotClass: 'current' };
+      break;
+
+    case 'Valide':
+      states[0] = { dotClass: 'completed' };
+      states[1] = { dotClass: 'completed' };
+      states[2] = { dotClass: 'completed' };
+      states[3] = { dotClass: 'completed' };
+      break;
+
+    case 'Rejete Final':
+      states[0] = { dotClass: 'completed' };
+      states[1] = { dotClass: 'completed' };
+      states[2] = { dotClass: 'completed' };
+      states[3] = { dotClass: 'rejected' };
+      break;
+
+    case 'Annule':
+      states[0] = { dotClass: 'rejected' };
+      break;
+  }
+
+  return states;
+}
+</script>

@@ -1,0 +1,15 @@
+{
+  "name": "gestion-conges",
+  "version": "1.0.0",
+  "description": "Outil de gestion des conges - Microfinance",
+  "scripts": {
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "deploy": "clasp push && clasp deploy",
+    "open": "clasp open",
+    "watch": "clasp push --watch"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}

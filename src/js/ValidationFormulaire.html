@@ -1,0 +1,106 @@
+<script>
+/**
+ * ValidationFormulaire.html - Validation cote client pour les formulaires
+ */
+
+var ValidationFormulaire = {
+  /**
+   * Valide le formulaire de demande de conge
+   * Retourne { valid: boolean, errors: {fieldName: message} }
+   */
+  validateDemandeForm: function(formData) {
+    var errors = {};
+
+    // Matricule
+    if (!formData.matricule || !/^M\d{4}$/.test(formData.matricule)) {
+      errors.matricule = 'Le matricule doit etre au format M suivi de 4 chiffres (ex: M0001)';
+    }
+
+    // Type de conge
+    if (!formData.typeConge) {
+      errors.typeConge = 'Veuillez selectionner un type de conge';
+    }
+
+    // Motif obligatoire pour absence exceptionnelle
+    if (formData.typeConge === 'Absence exceptionnelle' && (!formData.motif || formData.motif.trim() === '')) {
+      errors.motif = 'Le motif est obligatoire pour une absence exceptionnelle';
+    }
+
+    // Date debut
+    if (!formData.dateDebut) {
+      errors.dateDebut = 'La date de debut est obligatoire';
+    }
+
+    // Date fin
+    if (!formData.dateFin) {
+      errors.dateFin = 'La date de fin est obligatoire';
+    }
+
+    // Date fin >= date debut
+    if (formData.dateDebut && formData.dateFin) {
+      var debut = new Date(formData.dateDebut);
+      var fin = new Date(formData.dateFin);
+      if (fin < debut) {
+        errors.dateFin = 'La date de fin doit etre egale ou posterieure a la date de debut';
+      }
+    }
+
+    // Nombre de jours
+    if (formData.nbJours !== undefined && formData.nbJours <= 0) {
+      errors.nbJours = 'Le nombre de jours doit etre superieur a 0';
+    }
+
+    // Solde suffisant pour conges payes
+    if (formData.typeConge === 'Conges payes' && formData.soldeActuel !== undefined) {
+      if (formData.nbJours > formData.soldeActuel) {
+        errors.nbJours = 'Solde insuffisant. Solde actuel : ' + formData.soldeActuel + ' jours';
+      }
+    }
+
+    return {
+      valid: Object.keys(errors).length === 0,
+      errors: errors
+    };
+  },
+
+  /**
+   * Affiche les erreurs de validation sur le formulaire
+   */
+  showErrors: function(errors) {
+    // Nettoyer les erreurs precedentes
+    this.clearErrors();
+
+    var fields = Object.keys(errors);
+    for (var i = 0; i < fields.length; i++) {
+      var fieldName = fields[i];
+      var message = errors[fieldName];
+
+      var input = document.querySelector('[name="' + fieldName + '"]');
+      if (input) {
+        input.classList.add('error');
+
+        var errorDiv = document.createElement('div');
+        errorDiv.className = 'form-error';
+        errorDiv.textContent = message;
+        errorDiv.setAttribute('data-error-for', fieldName);
+        input.parentNode.appendChild(errorDiv);
+      }
+    }
+  },
+
+  /**
+   * Nettoie toutes les erreurs affichees
+   */
+  clearErrors: function() {
+    var errorInputs = document.querySelectorAll('.form-input.error, .form-select.error, .form-textarea.error');
+    for (var i = 0; i < errorInputs.length; i++) {
+      errorInputs[i].classList.remove('error');
+    }
+
+    var errorDivs = document.querySelectorAll('.form-error');
+    for (var j = 0; j < errorDivs.length; j++) {
+      errorDivs[j].parentNode.removeChild(errorDivs[j]);
+    }
+  }
+};
+</script>
