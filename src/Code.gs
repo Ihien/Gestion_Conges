@@ -19,7 +19,7 @@ function doGet(e) {
     ).setTitle('Acces refuse');
   }
 
-  var template = HtmlService.createTemplateFromFile('pages/Index');
+  var template = HtmlService.createTemplateFromFile('Index');
   template.userProfile = JSON.stringify(userProfile);
   template.initialPage = (e && e.parameter && e.parameter.page) ? e.parameter.page : 'Dashboard';
   template.pageParams = (e && e.parameter) ? JSON.stringify(e.parameter) : '{}';

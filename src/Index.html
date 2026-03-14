@@ -5,42 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gestion des Conges</title>
   <base target="_top">
-  <?!= include('css/Styles') ?>
+  <?!= include('Styles') ?>
 </head>
 <body>
-  <!-- Loading overlay -->
   <div id="loading-overlay">
     <div class="spinner"></div>
     <p style="margin-top:16px;color:#6b7280;">Chargement...</p>
   </div>
 
-  <!-- Navigation bar -->
   <header id="navbar-container">
-    <?!= include('partials/Navbar') ?>
+    <?!= include('Navbar') ?>
   </header>
 
-  <!-- Main content area -->
-  <main id="app-content" class="container">
-  </main>
+  <main id="app-content" class="container"></main>
 
-  <!-- Toast notification container -->
   <div id="toast-container"></div>
 
-  <!-- Modal container -->
   <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal(event)">
-    <div class="modal-content" id="modal-content" onclick="event.stopPropagation()">
-    </div>
+    <div class="modal-content" id="modal-content" onclick="event.stopPropagation()"></div>
   </div>
 
-  <!-- Pass server data to client -->
   <script>
     var APP_USER_PROFILE = <?!= userProfile ?>;
     var APP_INITIAL_PAGE = '<?!= initialPage ?>';
     var APP_PAGE_PARAMS = <?!= pageParams ?>;
   </script>
 
-  <!-- Scripts -->
-  <?!= include('js/App') ?>
-  <?!= include('js/ValidationFormulaire') ?>
+  <?!= include('Components') ?>
+  <?!= include('AppJs') ?>
+  <?!= include('Controllers') ?>
 </body>
 </html>

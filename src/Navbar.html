@@ -1,0 +1,50 @@
+<nav class="navbar">
+  <a class="navbar-brand" href="#" onclick="navigateTo('Dashboard'); return false;">
+    Gestion des Conges
+  </a>
+
+  <button class="navbar-toggle" onclick="toggleNav()" aria-label="Menu">&#9776;</button>
+
+  <ul class="navbar-nav" id="navbar-nav">
+    <li><a class="nav-link" data-page="Dashboard" onclick="navigateTo('Dashboard'); return false;" href="#">Tableau de bord<span class="badge-count hidden" id="nav-pending-count"></span></a></li>
+    <li><a class="nav-link" data-page="NouvelDemande" onclick="navigateTo('NouvelDemande'); return false;" href="#">Nouvelle demande</a></li>
+    <li><a class="nav-link" data-page="MonProfil" onclick="navigateTo('MonProfil'); return false;" href="#">Mon profil</a></li>
+    <li id="nav-admin" class="hidden"><a class="nav-link" data-page="Administration" onclick="navigateTo('Administration'); return false;" href="#">Administration</a></li>
+  </ul>
+
+  <div class="navbar-user" id="navbar-user">
+    <span id="user-name"></span>
+    <span class="role-badge" id="user-role-badge"></span>
+  </div>
+</nav>
+
+<script>
+function toggleNav() {
+  document.getElementById('navbar-nav').classList.toggle('open');
+}
+
+function updateNavbar(profile) {
+  if (!profile) return;
+  document.getElementById('user-name').textContent = profile.prenom + ' ' + profile.nom;
+  var roleLabels = {'EMPLOYE':'Employe','CHEF_AGENCE':'Chef Agence','CHEF_DEPARTEMENT':'Chef Dept.','RH':'RH','DIRECTEUR_CLIENTELE':'Dir. Clientele','DIRECTEUR_GENERAL':'Dir. General'};
+  document.getElementById('user-role-badge').textContent = roleLabels[profile.role] || profile.role;
+  if (profile.role === 'RH' || profile.role === 'DIRECTEUR_GENERAL') {
+    document.getElementById('nav-admin').classList.remove('hidden');
+  }
+}
+
+function updateActiveNavLink(pageName) {
+  var links = document.querySelectorAll('.nav-link');
+  for (var i = 0; i < links.length; i++) {
+    links[i].classList.remove('active');
+    if (links[i].getAttribute('data-page') === pageName) links[i].classList.add('active');
+  }
+  document.getElementById('navbar-nav').classList.remove('open');
+}
+
+function updatePendingCount(count) {
+  var badge = document.getElementById('nav-pending-count');
+  if (count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
+  else { badge.classList.add('hidden'); }
+}
+</script>

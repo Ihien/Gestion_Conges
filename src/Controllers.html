@@ -1,0 +1,293 @@
+<script>
+/* =============================================================
+ * Controllers.html
+ * Dashboard, Formulaire (NouvelDemande), Detail, Administration
+ * ============================================================= */
+
+// =============================================================
+// DASHBOARD
+// =============================================================
+var DashboardState = { myRequests: [], pendingRequests: [], teamRequests: [] };
+
+function loadDashboard() {
+  var content = document.getElementById('app-content');
+  var role = App.userProfile.role;
+  var promises = [serverCall('server_getMyRequests'), serverCall('server_getPendingForMe')];
+  if (role !== 'EMPLOYE') promises.push(serverCall('server_getTeamRequests'));
+
+  Promise.all(promises).then(function(results) {
+    DashboardState.myRequests = results[0] || [];
+    DashboardState.pendingRequests = results[1] || [];
+    DashboardState.teamRequests = results[2] || [];
+    content.innerHTML = renderDashboard();
+  }).catch(function(error) {
+    content.innerHTML = '<div class="alert alert-danger">Erreur : ' + escapeHtml(error.message) + '</div>';
+  });
+}
+
+function renderDashboard() {
+  var html = '', role = App.userProfile.role, p = App.userProfile;
+  html += '<div class="stats-grid">';
+  html += '<div class="stat-card"><div class="stat-value">'+(p.soldeConges||0)+'</div><div class="stat-label">Jours de conge restants</div></div>';
+  html += '<div class="stat-card"><div class="stat-value">'+DashboardState.myRequests.length+'</div><div class="stat-label">Mes demandes</div></div>';
+  if (DashboardState.pendingRequests.length > 0) {
+    html += '<div class="stat-card" style="border-left:4px solid var(--color-warning);"><div class="stat-value" style="color:var(--color-warning);">'+DashboardState.pendingRequests.length+'</div><div class="stat-label">En attente de mon action</div></div>';
+  }
+  if (role !== 'EMPLOYE') html += '<div class="stat-card"><div class="stat-value">'+DashboardState.teamRequests.length+'</div><div class="stat-label">Demandes equipe</div></div>';
+  html += '</div>';
+  html += '<div class="mb-16"><button class="btn btn-primary btn-lg" onclick="navigateTo(\'NouvelDemande\')">+ Nouvelle demande de conge</button></div>';
+
+  if (DashboardState.pendingRequests.length > 0) {
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">En attente de mon action</h2><span class="badge-count" style="font-size:0.9rem;min-width:24px;height:24px;">'+DashboardState.pendingRequests.length+'</span></div>';
+    html += renderTableDemandes(DashboardState.pendingRequests, {showEmployee:true});
+    html += '</div>';
+  }
+
+  html += '<div class="card"><div class="card-header"><h2 class="card-title">Mes demandes</h2></div>';
+  html += '<div class="filters-bar"><div class="filter-pills">';
+  html += '<span class="filter-pill active" onclick="dashboardFilter(\'all\',this)">Toutes</span>';
+  html += '<span class="filter-pill" onclick="dashboardFilter(\'Soumis\',this)">Soumises</span>';
+  html += '<span class="filter-pill" onclick="dashboardFilter(\'en_cours\',this)">En cours</span>';
+  html += '<span class="filter-pill" onclick="dashboardFilter(\'Valide\',this)">Validees</span>';
+  html += '<span class="filter-pill" onclick="dashboardFilter(\'rejete\',this)">Rejetees</span>';
+  html += '</div></div>';
+  html += '<div id="my-requests-table">' + renderTableDemandes(DashboardState.myRequests, {showEmployee:false}) + '</div></div>';
+
+  if (role !== 'EMPLOYE' && DashboardState.teamRequests.length > 0) {
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Demandes de l\'equipe</h2></div>';
+    html += renderTableDemandes(DashboardState.teamRequests, {showEmployee:true}) + '</div>';
+  }
+  return html;
+}
+
+function dashboardFilter(filter, el) {
+  var pills = document.querySelectorAll('.filter-pill');
+  for (var i = 0; i < pills.length; i++) pills[i].classList.remove('active');
+  el.classList.add('active');
+  var filtered;
+  if (filter === 'all') filtered = DashboardState.myRequests;
+  else if (filter === 'en_cours') filtered = DashboardState.myRequests.filter(function(r){ return r.statut==='Approuve N1'||r.statut==='Avis RH Favorable'||r.statut==='Avis RH Defavorable'; });
+  else if (filter === 'rejete') filtered = DashboardState.myRequests.filter(function(r){ return r.statut==='Rejete N1'||r.statut==='Rejete Final'; });
+  else filtered = DashboardState.myRequests.filter(function(r){ return r.statut===filter; });
+  document.getElementById('my-requests-table').innerHTML = renderTableDemandes(filtered, {showEmployee:false});
+}
+
+// =============================================================
+// NOUVELLE DEMANDE
+// =============================================================
+function loadNouvelDemande() {
+  var p = App.userProfile, c = document.getElementById('app-content');
+  var html = '<div class="card"><div class="card-header"><h2 class="card-title">Nouvelle demande de conge</h2></div>';
+  html += '<form id="form-demande" onsubmit="submitDemande(event); return false;">';
+  html += '<h3 class="mb-8" style="font-size:1rem;color:var(--color-gray-700);">Informations de l\'employe</h3>';
+  html += '<div class="form-row">';
+  html += formField('Matricule','matricule','text',p.matricule,false,'M0001');
+  html += formField('Nom','nom','text',p.nom,true);
+  html += '</div><div class="form-row">';
+  html += formField('Prenom','prenom','text',p.prenom,true);
+  html += formField('Poste','poste','text',p.poste,true);
+  html += '</div><div class="form-row">';
+  html += '<div class="form-group"><label class="form-label">Departement</label><input type="text" name="departement" class="form-input form-readonly" value="'+escapeHtml(p.departement)+'" readonly></div>';
+  html += '<div class="form-group"><label class="form-label">Agence</label><input type="text" name="agence" class="form-input form-readonly" value="'+escapeHtml(p.agence||'Siege')+'" readonly></div>';
+  html += '</div>';
+  html += '<hr style="margin:20px 0;border:none;border-top:1px solid var(--color-gray-200);">';
+  html += '<h3 class="mb-8" style="font-size:1rem;color:var(--color-gray-700);">Details du conge</h3>';
+  html += '<div class="form-row"><div class="form-group"><label class="form-label">Type de conge *</label>';
+  html += '<select name="typeConge" class="form-select" onchange="onTypeCongeChange(this.value)"><option value="">-- Selectionner --</option><option value="Conges payes">Conges payes</option><option value="Absence exceptionnelle">Absence exceptionnelle</option></select></div>';
+  html += '<div class="form-group"><label class="form-label">Solde actuel</label><div class="stat-card" style="padding:8px;text-align:center;"><span class="stat-value" style="font-size:1.5rem;">'+(p.soldeConges||0)+'</span><span class="stat-label"> jours</span></div></div></div>';
+  html += '<div class="form-group hidden" id="motif-group"><label class="form-label">Motif *</label><textarea name="motif" class="form-textarea" placeholder="Precisez le motif de l\'absence exceptionnelle..."></textarea></div>';
+  html += '<div class="form-row"><div class="form-group"><label class="form-label">Date de debut *</label><input type="date" name="dateDebut" class="form-input" onchange="calcDays()"></div>';
+  html += '<div class="form-group"><label class="form-label">Date de fin *</label><input type="date" name="dateFin" class="form-input" onchange="calcDays()"></div></div>';
+  html += '<div class="form-group"><label class="form-label">Nombre de jours ouvres</label><div id="nb-jours-display" class="alert alert-info" style="display:inline-block;padding:8px 16px;">Selectionnez les dates</div><input type="hidden" name="nbJours" value="0"></div>';
+  html += '<div class="form-group"><label class="form-label">Responsable hierarchique</label><input type="text" class="form-input form-readonly" value="'+escapeHtml(p.managerEmail||'Non defini')+'" readonly></div>';
+  html += '<div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px;">';
+  html += '<button type="button" class="btn btn-outline" onclick="navigateTo(\'Dashboard\')">Annuler</button>';
+  html += '<button type="submit" class="btn btn-primary btn-lg" id="btn-submit">Soumettre la demande</button>';
+  html += '</div></form></div>';
+  c.innerHTML = html;
+}
+
+function formField(label, name, type, value, readonly, placeholder) {
+  var h = '<div class="form-group"><label class="form-label">'+label+(readonly?'':' *')+'</label>';
+  h += '<input type="'+type+'" name="'+name+'" class="form-input'+(readonly?' form-readonly':'')+'" value="'+escapeHtml(value||'')+'"';
+  if (readonly) h += ' readonly';
+  if (placeholder) h += ' placeholder="'+placeholder+'"';
+  return h + '></div>';
+}
+
+function onTypeCongeChange(val) {
+  document.getElementById('motif-group').classList.toggle('hidden', val !== 'Absence exceptionnelle');
+}
+
+function calcDays() {
+  var d1 = document.querySelector('[name="dateDebut"]').value;
+  var d2 = document.querySelector('[name="dateFin"]').value;
+  var display = document.getElementById('nb-jours-display');
+  var hidden = document.querySelector('[name="nbJours"]');
+  if (!d1||!d2) { display.textContent='Selectionnez les dates'; display.className='alert alert-info'; hidden.value='0'; return; }
+  display.textContent = 'Calcul en cours...';
+  serverCall('server_calculateBusinessDays',[d1,d2]).then(function(nb){
+    hidden.value = nb;
+    if (nb > 0) {
+      display.textContent = nb + ' jour'+(nb>1?'s':'')+' ouvre'+(nb>1?'s':'');
+      display.className = 'alert alert-success';
+      var type = document.querySelector('[name="typeConge"]').value;
+      if (type==='Conges payes' && nb > (App.userProfile.soldeConges||0)) { display.textContent += ' (ATTENTION: solde insuffisant!)'; display.className='alert alert-danger'; }
+    } else { display.textContent='Aucun jour ouvre dans cette periode'; display.className='alert alert-warning'; }
+  }).catch(function(){ display.textContent='Erreur de calcul'; display.className='alert alert-danger'; });
+}
+
+function submitDemande(event) {
+  event.preventDefault();
+  ValidationFormulaire.clearErrors();
+  var f = document.getElementById('form-demande');
+  var data = {
+    matricule: f.querySelector('[name="matricule"]').value,
+    nom: f.querySelector('[name="nom"]').value,
+    prenom: f.querySelector('[name="prenom"]').value,
+    poste: f.querySelector('[name="poste"]').value,
+    departement: f.querySelector('[name="departement"]').value,
+    agence: App.userProfile.agence || '',
+    typeConge: f.querySelector('[name="typeConge"]').value,
+    motif: f.querySelector('[name="motif"]') ? f.querySelector('[name="motif"]').value : '',
+    dateDebut: f.querySelector('[name="dateDebut"]').value,
+    dateFin: f.querySelector('[name="dateFin"]').value,
+    nbJours: parseInt(f.querySelector('[name="nbJours"]').value) || 0,
+    soldeActuel: App.userProfile.soldeConges || 0
+  };
+  var v = ValidationFormulaire.validateDemandeForm(data);
+  if (!v.valid) { ValidationFormulaire.showErrors(v.errors); return; }
+  var btn = document.getElementById('btn-submit'); btn.disabled=true; btn.textContent='Envoi en cours...';
+  serverCall('server_submitRequest', data).then(function(){
+    showToast('Demande soumise avec succes !','success'); loadPendingCount(); navigateTo('Dashboard');
+  }).catch(function(error){
+    showToast('Erreur: '+error.message,'error'); btn.disabled=false; btn.textContent='Soumettre la demande';
+  });
+}
+
+// =============================================================
+// DETAIL DEMANDE
+// =============================================================
+function loadDetailDemande(params) {
+  var c = document.getElementById('app-content');
+  var rid = params ? (params.id || params.requestId) : null;
+  if (!rid) { c.innerHTML='<div class="alert alert-danger">Identifiant de demande manquant.</div>'; return; }
+  serverCall('server_getRequestById', rid).then(function(req) { c.innerHTML = renderDetail(req); }).catch(function(error) {
+    c.innerHTML='<div class="alert alert-danger">Erreur : '+escapeHtml(error.message)+'</div><button class="btn btn-outline mt-16" onclick="navigateTo(\'Dashboard\')">&larr; Retour</button>';
+  });
+}
+
+function renderDetail(r) {
+  var html = '<div class="mb-16"><button class="btn btn-outline btn-sm" onclick="navigateTo(\'Dashboard\')">&larr; Retour</button></div>';
+  html += '<div class="card"><div class="card-header"><h2 class="card-title">Demande - '+escapeHtml(r.prenom+' '+r.nom)+'</h2>'+renderBadgeStatut(r.statut)+'</div>';
+  html += renderTimelineStatut(r);
+  html += '<hr style="margin:16px 0;border:none;border-top:1px solid var(--color-gray-200);">';
+  html += '<div class="detail-grid">';
+  html += buildDetailField('Matricule',r.matricule)+buildDetailField('Email',r.emailEmp)+buildDetailField('Poste',r.poste);
+  html += buildDetailField('Departement',r.departement)+buildDetailField('Agence',r.agence||'Siege')+buildDetailField('Type de conge',r.typeConge);
+  if (r.motif) html += buildDetailField('Motif',r.motif);
+  html += buildDetailField('Date de debut',formatDateDisplay(r.dateDebut))+buildDetailField('Date de fin',formatDateDisplay(r.dateFin));
+  html += buildDetailField('Nombre de jours',r.nbJours)+buildDetailField('Responsable',r.managerName+' ('+r.managerEmail+')');
+  html += buildDetailField('Date de soumission',formatDateDisplay(r.dateSubmit));
+  html += '</div></div>';
+
+  if (r.commentManager||r.avisRh||r.commentRh||r.commentValidateur) {
+    html += '<div class="card"><div class="card-header"><h3 class="card-title">Commentaires et avis</h3></div>';
+    if (r.commentManager) { html += '<div class="mb-16"><div class="detail-label">Commentaire du responsable</div><div class="detail-value">'+escapeHtml(r.commentManager)+'</div>'; if (r.dateApprobation) html += '<div class="text-sm text-muted">'+formatDateDisplay(r.dateApprobation)+'</div>'; html += '</div>'; }
+    if (r.avisRh) { html += '<div class="mb-16"><div class="detail-label">Avis RH</div><div class="detail-value"><span style="color:var(--color-'+(r.avisRh==='Favorable'?'success':'danger')+');font-weight:600;">'+escapeHtml(r.avisRh)+'</span></div>'; if (r.commentRh) html += '<div class="text-sm mt-8">'+escapeHtml(r.commentRh)+'</div>'; if (r.dateAvisRh) html += '<div class="text-sm text-muted">'+formatDateDisplay(r.dateAvisRh)+'</div>'; html += '</div>'; }
+    if (r.commentValidateur) { html += '<div class="mb-16"><div class="detail-label">Commentaire du validateur final</div><div class="detail-value">'+escapeHtml(r.commentValidateur)+'</div>'; if (r.dateDecisionFinale) html += '<div class="text-sm text-muted">'+formatDateDisplay(r.dateDecisionFinale)+'</div>'; html += '</div>'; }
+    html += '</div>';
+  }
+
+  if (r.statut==='Valide' && r.pdfUrl) {
+    html += '<div class="card"><div class="card-header"><h3 class="card-title">Document</h3></div><a href="'+escapeHtml(r.pdfUrl)+'" target="_blank" class="btn btn-primary">Telecharger le PDF de conge</a></div>';
+  }
+
+  if (r.availableActions && r.availableActions.length > 0) {
+    var btnCfg = {'APPROVE_N1':{l:'Approuver',c:'btn-success'},'REJECT_N1':{l:'Rejeter',c:'btn-danger'},'AVIS_FAVORABLE':{l:'Avis Favorable',c:'btn-success'},'AVIS_DEFAVORABLE':{l:'Avis Defavorable',c:'btn-warning'},'VALIDER':{l:'Valider (Decision finale)',c:'btn-success'},'REJETER_FINAL':{l:'Rejeter (Decision finale)',c:'btn-danger'},'ANNULER':{l:'Annuler ma demande',c:'btn-outline'}};
+    html += '<div class="card"><div class="card-header"><h3 class="card-title">Actions disponibles</h3></div><div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    for (var i = 0; i < r.availableActions.length; i++) {
+      var a = r.availableActions[i], bc = btnCfg[a]||{l:a,c:'btn-outline'};
+      html += '<button class="btn '+bc.c+'" onclick="showActionModal(\''+a+'\',\''+escapeHtml(r.requestId)+'\')">'+bc.l+'</button>';
+    }
+    html += '</div></div>';
+  }
+  return html;
+}
+
+// =============================================================
+// ADMINISTRATION
+// =============================================================
+function loadAdministration() {
+  var c = document.getElementById('app-content'), role = App.userProfile.role;
+  if (role !== 'RH' && role !== 'DIRECTEUR_GENERAL') { c.innerHTML='<div class="alert alert-danger">Acces reserve aux administrateurs.</div>'; return; }
+  var html = '<div class="card"><div class="card-header"><h2 class="card-title">Administration</h2></div>';
+  html += '<div class="tabs"><div class="tab active" onclick="adminTab(\'employes\',this)">Employes</div><div class="tab" onclick="adminTab(\'soldes\',this)">Soldes</div><div class="tab" onclick="adminTab(\'config\',this)">Configuration</div></div>';
+  html += '<div id="admin-tab-content"></div></div>';
+  c.innerHTML = html;
+  adminLoadEmployees();
+}
+
+function adminTab(tab, el) {
+  var tabs = document.querySelectorAll('.tab');
+  for (var i=0;i<tabs.length;i++) tabs[i].classList.remove('active');
+  el.classList.add('active');
+  if (tab==='employes') adminLoadEmployees();
+  else if (tab==='soldes') adminLoadSoldes();
+  else adminLoadConfig();
+}
+
+function adminLoadEmployees() {
+  var ct = document.getElementById('admin-tab-content');
+  ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
+  serverCall('server_getEmployeeList').then(function(emps) {
+    var html = '<div class="mb-16"><input type="text" class="form-input" style="max-width:300px;" placeholder="Rechercher..." oninput="adminFilterEmp(this.value)"></div>';
+    html += '<div class="table-responsive"><table class="table" id="admin-emp-table"><thead><tr><th>Matricule</th><th>Nom</th><th>Prenom</th><th>Departement</th><th>Agence</th><th>Role</th><th>Solde</th><th>Actif</th></tr></thead><tbody>';
+    for (var i=0;i<emps.length;i++) {
+      var e = emps[i];
+      html += '<tr data-s="'+escapeHtml((e.matricule+' '+e.nom+' '+e.prenom+' '+e.departement).toLowerCase())+'">';
+      html += '<td>'+escapeHtml(e.matricule)+'</td><td>'+escapeHtml(e.nom)+'</td><td>'+escapeHtml(e.prenom)+'</td>';
+      html += '<td>'+escapeHtml(e.departement)+'</td><td>'+escapeHtml(e.agence||'Siege')+'</td>';
+      html += '<td><span class="badge-statut badge-soumis">'+escapeHtml(e.role)+'</span></td>';
+      html += '<td>'+(e.soldeConges||0)+'</td><td>'+(e.actif===true||e.actif==='TRUE'?'Oui':'Non')+'</td></tr>';
+    }
+    html += '</tbody></table></div>';
+    ct.innerHTML = html;
+  }).catch(function(err) { ct.innerHTML='<div class="alert alert-danger">'+escapeHtml(err.message)+'</div>'; });
+}
+
+function adminFilterEmp(q) {
+  var rows = document.querySelectorAll('#admin-emp-table tbody tr'), ql = q.toLowerCase();
+  for (var i=0;i<rows.length;i++) rows[i].style.display = (rows[i].getAttribute('data-s')||'').indexOf(ql)!==-1?'':'none';
+}
+
+function adminLoadSoldes() {
+  var ct = document.getElementById('admin-tab-content');
+  ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
+  serverCall('server_getTeamBalances').then(function(b) {
+    var html = '<div class="table-responsive"><table class="table"><thead><tr><th>Matricule</th><th>Nom</th><th>Prenom</th><th>Dept</th><th>Solde</th><th>Allocation</th></tr></thead><tbody>';
+    for (var i=0;i<b.length;i++) {
+      var sc = b[i].soldeConges<=5?' style="color:var(--color-danger);font-weight:700;"':'';
+      html += '<tr><td>'+escapeHtml(b[i].matricule)+'</td><td>'+escapeHtml(b[i].nom)+'</td><td>'+escapeHtml(b[i].prenom)+'</td><td>'+escapeHtml(b[i].departement)+'</td><td'+sc+'>'+(b[i].soldeConges||0)+'</td><td>'+(b[i].soldeInitial||30)+'</td></tr>';
+    }
+    html += '</tbody></table></div>';
+    ct.innerHTML = html;
+  }).catch(function(err) { ct.innerHTML='<div class="alert alert-danger">'+escapeHtml(err.message)+'</div>'; });
+}
+
+function adminLoadConfig() {
+  var ct = document.getElementById('admin-tab-content');
+  ct.innerHTML = '<div class="alert alert-info">La configuration est geree directement dans la feuille "Config" du Google Sheets.</div>';
+  ct.innerHTML += '<table class="table"><thead><tr><th>Parametre</th><th>Description</th></tr></thead><tbody>'
+    +'<tr><td>NOM_INSTITUTION</td><td>Nom de l\'institution</td></tr>'
+    +'<tr><td>WEBAPP_URL</td><td>URL de la Web App deployee</td></tr>'
+    +'<tr><td>HR_EMAILS</td><td>Emails RH (separes par virgule)</td></tr>'
+    +'<tr><td>DIR_CLIENTELE_EMAIL</td><td>Email du Directeur Clientele</td></tr>'
+    +'<tr><td>DIR_GENERAL_EMAIL</td><td>Email du Directeur General</td></tr>'
+    +'<tr><td>AUDIT_EMAILS</td><td>Emails Audit/Controle Permanent</td></tr>'
+    +'<tr><td>PDF_TEMPLATE_DOC_ID</td><td>ID du Google Doc template PDF</td></tr>'
+    +'<tr><td>ARCHIVE_FOLDER_ID</td><td>ID du dossier Drive archives</td></tr>'
+    +'<tr><td>SOLDE_ANNUEL_DEFAUT</td><td>Allocation annuelle par defaut (30)</td></tr>'
+    +'</tbody></table>';
+}
+</script>

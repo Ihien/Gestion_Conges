@@ -1,0 +1,143 @@
+<script>
+/* =============================================================
+ * Components.html
+ * Composants UI reutilisables : BadgeStatut, TableDemandes,
+ * TimelineStatut, ModalAction
+ * ============================================================= */
+
+// ===== BADGE STATUT =====
+function renderBadgeStatut(statut) {
+  return '<span class="badge-statut ' + getStatusBadgeClass(statut) + '">' + escapeHtml(statut) + '</span>';
+}
+
+// ===== TABLE DEMANDES =====
+function renderTableDemandes(requests, options) {
+  options = options || {};
+  var showEmployee = options.showEmployee !== false;
+  var compact = options.compact || false;
+
+  if (!requests || requests.length === 0) {
+    return '<div class="table-empty"><div style="font-size:3rem;margin-bottom:12px;">&#128196;</div><p>Aucune demande trouvee</p></div>';
+  }
+
+  var html = '<div class="table-responsive"><table class="table"><thead><tr>';
+  if (showEmployee) html += '<th>Employe</th>';
+  html += '<th>Type</th><th>Du</th><th>Au</th>';
+  if (!compact) html += '<th>Jours</th>';
+  html += '<th>Statut</th><th>Action</th></tr></thead><tbody>';
+
+  for (var i = 0; i < requests.length; i++) {
+    var req = requests[i];
+    html += '<tr>';
+    if (showEmployee) {
+      html += '<td><strong>' + escapeHtml(req.prenom + ' ' + req.nom) + '</strong>';
+      if (!compact) html += '<br><span class="text-muted text-sm">' + escapeHtml(req.matricule) + '</span>';
+      html += '</td>';
+    }
+    html += '<td>' + escapeHtml(req.typeConge) + '</td>';
+    html += '<td>' + formatDateDisplay(req.dateDebut) + '</td>';
+    html += '<td>' + formatDateDisplay(req.dateFin) + '</td>';
+    if (!compact) html += '<td>' + (req.nbJours || '-') + '</td>';
+    html += '<td>' + renderBadgeStatut(req.statut) + '</td>';
+    html += '<td><button class="btn btn-sm btn-outline" onclick="navigateTo(\'DetailDemande\',{id:\'' + escapeHtml(req.requestId) + '\'})">Voir</button></td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+  return html;
+}
+
+// ===== TIMELINE STATUT =====
+function renderTimelineStatut(request) {
+  var steps = [
+    { label: 'Soumis', dateField: 'dateSubmit' },
+    { label: 'Approuve N1', dateField: 'dateApprobation' },
+    { label: 'Avis RH', dateField: 'dateAvisRh' },
+    { label: 'Decision finale', dateField: 'dateDecisionFinale' }
+  ];
+
+  var stepStates = getStepStates(request.statut, request);
+  var html = '<div class="timeline">';
+
+  for (var i = 0; i < steps.length; i++) {
+    var state = stepStates[i];
+    var dateValue = request[steps[i].dateField];
+    html += '<div class="timeline-step">';
+    html += '<div class="timeline-dot ' + state.dotClass + '">';
+    if (state.dotClass === 'completed') html += '&#10003;';
+    else if (state.dotClass === 'rejected') html += '&#10007;';
+    else if (state.dotClass === 'current') html += '&#9679;';
+    else html += (i + 1);
+    html += '</div>';
+    html += '<div class="timeline-label">' + steps[i].label;
+    if (i === 2 && request.avisRh) html += '<br><span class="text-sm">' + escapeHtml(request.avisRh) + '</span>';
+    html += '</div>';
+    html += '<div class="timeline-date">';
+    if (dateValue) html += formatDateDisplay(dateValue);
+    else if (state.dotClass === 'current') html += 'En attente';
+    else html += '-';
+    html += '</div></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function getStepStates(statut) {
+  var s = [{dotClass:''},{dotClass:''},{dotClass:''},{dotClass:''}];
+  switch (statut) {
+    case 'Soumis': s[0]={dotClass:'completed'}; s[1]={dotClass:'current'}; break;
+    case 'Approuve N1': s[0]={dotClass:'completed'}; s[1]={dotClass:'completed'}; s[2]={dotClass:'current'}; break;
+    case 'Rejete N1': s[0]={dotClass:'completed'}; s[1]={dotClass:'rejected'}; break;
+    case 'Avis RH Favorable': case 'Avis RH Defavorable':
+      s[0]={dotClass:'completed'}; s[1]={dotClass:'completed'}; s[2]={dotClass:'completed'}; s[3]={dotClass:'current'}; break;
+    case 'Valide': s[0]={dotClass:'completed'}; s[1]={dotClass:'completed'}; s[2]={dotClass:'completed'}; s[3]={dotClass:'completed'}; break;
+    case 'Rejete Final': s[0]={dotClass:'completed'}; s[1]={dotClass:'completed'}; s[2]={dotClass:'completed'}; s[3]={dotClass:'rejected'}; break;
+    case 'Annule': s[0]={dotClass:'rejected'}; break;
+  }
+  return s;
+}
+
+// ===== MODAL ACTION =====
+function showActionModal(actionKey, requestId) {
+  var cfg = {
+    'APPROVE_N1':      {title:'Approuver la demande',              btnText:'Approuver',              btnClass:'btn-success'},
+    'REJECT_N1':       {title:'Rejeter la demande',                btnText:'Rejeter',                btnClass:'btn-danger'},
+    'AVIS_FAVORABLE':  {title:'Donner un avis favorable',          btnText:'Avis Favorable',         btnClass:'btn-success'},
+    'AVIS_DEFAVORABLE':{title:'Donner un avis defavorable',        btnText:'Avis Defavorable',       btnClass:'btn-warning'},
+    'VALIDER':         {title:'Valider la demande (decision finale)',btnText:'Valider',               btnClass:'btn-success'},
+    'REJETER_FINAL':   {title:'Rejeter la demande (decision finale)',btnText:'Rejeter',               btnClass:'btn-danger'},
+    'ANNULER':         {title:'Annuler la demande',                 btnText:'Confirmer l\'annulation',btnClass:'btn-danger'}
+  };
+  var c = cfg[actionKey] || {title:'Confirmer',btnText:'Confirmer',btnClass:'btn-primary'};
+  var commentRequired = ['REJECT_N1','AVIS_DEFAVORABLE','REJETER_FINAL'].indexOf(actionKey) !== -1;
+
+  var html = '<h3 class="modal-title">' + c.title + '</h3>';
+  html += '<div class="form-group"><label class="form-label">Commentaire' + (commentRequired ? ' (obligatoire)' : ' (optionnel)') + '</label>';
+  html += '<textarea class="form-textarea" id="modal-comment" placeholder="Saisissez votre commentaire..."></textarea></div>';
+  html += '<div class="modal-actions">';
+  html += '<button class="btn btn-outline" onclick="forceCloseModal()">Annuler</button>';
+  html += '<button class="btn ' + c.btnClass + '" id="modal-confirm-btn" onclick="confirmAction(\'' + actionKey + '\',\'' + requestId + '\',' + commentRequired + ')">' + c.btnText + '</button>';
+  html += '</div>';
+  showModal(html);
+}
+
+function confirmAction(actionKey, requestId, commentRequired) {
+  var comment = document.getElementById('modal-comment').value.trim();
+  if (commentRequired && !comment) { showToast('Le commentaire est obligatoire pour cette action','error'); return; }
+
+  var btn = document.getElementById('modal-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Traitement...';
+
+  serverCall('server_processAction', [requestId, actionKey, comment])
+    .then(function() {
+      forceCloseModal();
+      showToast('Action effectuee avec succes','success');
+      loadPendingCount();
+      if (App.currentPage === 'DetailDemande') loadDetailDemande({id: requestId});
+      else navigateTo('Dashboard');
+    })
+    .catch(function(error) {
+      btn.disabled = false; btn.textContent = 'Reessayer';
+      showToast('Erreur : ' + error.message, 'error');
+    });
+}
+</script>
