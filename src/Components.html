@@ -48,14 +48,21 @@ function renderTableDemandes(requests, options) {
 
 // ===== TIMELINE STATUT =====
 function renderTimelineStatut(request) {
+  // Detecter si l'etape N1 a ete sautee (auto-approbation par Direction)
+  var n1Skipped = request.commentManager && request.commentManager.indexOf('automatique') !== -1;
+
   var steps = [
     { label: 'Soumis', dateField: 'dateSubmit' },
-    { label: 'Approuve N1', dateField: 'dateApprobation' },
+    { label: n1Skipped ? 'N1 (saute)' : 'Approuve N1', dateField: 'dateApprobation' },
     { label: 'Avis RH', dateField: 'dateAvisRh' },
     { label: 'Decision finale', dateField: 'dateDecisionFinale' }
   ];
 
   var stepStates = getStepStates(request.statut, request);
+  // Si N1 saute, marquer l'etape N1 comme 'skipped' visuellement
+  if (n1Skipped && stepStates[1].dotClass === 'completed') {
+    stepStates[1].dotClass = 'skipped';
+  }
   var html = '<div class="timeline">';
 
   for (var i = 0; i < steps.length; i++) {
@@ -65,6 +72,7 @@ function renderTimelineStatut(request) {
     html += '<div class="timeline-dot ' + state.dotClass + '">';
     if (state.dotClass === 'completed') html += '&#10003;';
     else if (state.dotClass === 'rejected') html += '&#10007;';
+    else if (state.dotClass === 'skipped') html += '&#10140;';
     else if (state.dotClass === 'current') html += '&#9679;';
     else html += (i + 1);
     html += '</div>';
@@ -72,7 +80,8 @@ function renderTimelineStatut(request) {
     if (i === 2 && request.avisRh) html += '<br><span class="text-sm">' + escapeHtml(request.avisRh) + '</span>';
     html += '</div>';
     html += '<div class="timeline-date">';
-    if (dateValue) html += formatDateDisplay(dateValue);
+    if (state.dotClass === 'skipped') html += '<span class="text-sm text-muted">Auto</span>';
+    else if (dateValue) html += formatDateDisplay(dateValue);
     else if (state.dotClass === 'current') html += 'En attente';
     else html += '-';
     html += '</div></div>';

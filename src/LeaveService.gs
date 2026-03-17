@@ -79,13 +79,32 @@ function LeaveService_submitRequest(formData, userProfile) {
   row[COL_DEMANDES.NB_JOURS] = nbJours;
   row[COL_DEMANDES.MANAGER_EMAIL] = managerEmail || '';
   row[COL_DEMANDES.MANAGER_NAME] = managerName;
-  row[COL_DEMANDES.STATUT] = STATUS.SOUMIS;
-  row[COL_DEMANDES.COMMENT_MANAGER] = '';
+  // Detecter si le manager est DG ou DC (skip N1)
+  var skipN1 = false;
+  if (managerEmail) {
+    var managerRow2 = SheetDAO_getRowByKey(SHEET_NAMES.EMPLOYES, COL_EMPLOYES.EMAIL, managerEmail);
+    if (managerRow2) {
+      var managerRole = managerRow2[COL_EMPLOYES.ROLE];
+      if (managerRole === ROLES.DIRECTEUR_GENERAL || managerRole === ROLES.DIRECTEUR_CLIENTELE) {
+        skipN1 = true;
+      }
+    }
+  }
+
+  if (skipN1) {
+    // Quand le manager est DG/DC, sauter l'etape N1 et aller directement a l'etape RH
+    row[COL_DEMANDES.STATUT] = STATUS.APPROUVE_N1;
+    row[COL_DEMANDES.COMMENT_MANAGER] = 'Approbation N1 automatique (responsable = Direction)';
+    row[COL_DEMANDES.DATE_APPROBATION] = now;
+  } else {
+    row[COL_DEMANDES.STATUT] = STATUS.SOUMIS;
+    row[COL_DEMANDES.COMMENT_MANAGER] = '';
+    row[COL_DEMANDES.DATE_APPROBATION] = '';
+  }
   row[COL_DEMANDES.AVIS_RH] = '';
   row[COL_DEMANDES.COMMENT_RH] = '';
   row[COL_DEMANDES.COMMENT_VALIDATEUR] = '';
   row[COL_DEMANDES.DATE_SUBMIT] = now;
-  row[COL_DEMANDES.DATE_APPROBATION] = '';
   row[COL_DEMANDES.DATE_AVIS_RH] = '';
   row[COL_DEMANDES.DATE_DECISION_FINALE] = '';
   row[COL_DEMANDES.PDF_URL] = '';
@@ -95,6 +114,7 @@ function LeaveService_submitRequest(formData, userProfile) {
   SheetDAO_appendRow(SHEET_NAMES.DEMANDES, row);
 
   // Journal d'audit
+  var initialStatus = skipN1 ? STATUS.APPROUVE_N1 : STATUS.SOUMIS;
   var auditRow = [
     now,
     userProfile.email,
@@ -102,14 +122,22 @@ function LeaveService_submitRequest(formData, userProfile) {
     requestId,
     ACTIONS.SUBMIT,
     '',
-    STATUS.SOUMIS,
-    'Demande soumise'
+    initialStatus,
+    skipN1 ? 'Demande soumise (etape N1 sautee - responsable = Direction)' : 'Demande soumise'
   ];
   SheetDAO_appendRow(SHEET_NAMES.AUDIT, auditRow);
 
   // Notification
   try {
-    NotificationService_onSubmit(buildRequestObject(row), userProfile);
+    var reqObj = buildRequestObject(row);
+    if (skipN1) {
+      // Notifications specifiques au skip N1 :
+      // 1. Confirmer a l'employe que sa demande passe directement a l'avis RH
+      NotificationService_onSkipN1(reqObj, userProfile);
+    } else {
+      // Flux normal : notifier employe + manager
+      NotificationService_onSubmit(reqObj, userProfile);
+    }
   } catch (e) {
     console.error('Erreur notification soumission: ' + e.message);
   }
