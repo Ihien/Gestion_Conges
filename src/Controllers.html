@@ -172,7 +172,13 @@ function loadDetailDemande(params) {
   var c = document.getElementById('app-content');
   var rid = params ? (params.id || params.requestId) : null;
   if (!rid) { c.innerHTML='<div class="alert alert-danger">Identifiant de demande manquant.</div>'; return; }
-  serverCall('server_getRequestById', rid).then(function(req) { c.innerHTML = renderDetail(req); }).catch(function(error) {
+  serverCall('server_getRequestById', rid).then(function(req) {
+    if (!req) {
+      c.innerHTML='<div class="alert alert-danger">Demande introuvable ou erreur de chargement (ID: '+escapeHtml(rid)+').</div><button class="btn btn-outline mt-16" onclick="navigateTo(\'Dashboard\')">&larr; Retour</button>';
+      return;
+    }
+    c.innerHTML = renderDetail(req);
+  }).catch(function(error) {
     c.innerHTML='<div class="alert alert-danger">Erreur : '+escapeHtml(error.message)+'</div><button class="btn btn-outline mt-16" onclick="navigateTo(\'Dashboard\')">&larr; Retour</button>';
   });
 }

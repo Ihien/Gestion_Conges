@@ -155,34 +155,40 @@ function toFrenchStatusLabel(statusCode) {
 function buildRequestObject(rowArray) {
   if (!rowArray || rowArray.length === 0) return null;
 
+  // Helper: convert Date objects to ISO strings for safe serialization via google.script.run
+  function safeDate(val) {
+    if (val instanceof Date) return formatDate(val);
+    return val ? String(val) : '';
+  }
+
   return {
-    requestId: rowArray[COL_DEMANDES.REQUEST_ID],
-    timestamp: rowArray[COL_DEMANDES.TIMESTAMP],
-    emailEmp: rowArray[COL_DEMANDES.EMAIL_EMP],
-    matricule: rowArray[COL_DEMANDES.MATRICULE],
-    nom: rowArray[COL_DEMANDES.NOM],
-    prenom: rowArray[COL_DEMANDES.PRENOM],
-    poste: rowArray[COL_DEMANDES.POSTE],
-    departement: rowArray[COL_DEMANDES.DEPARTEMENT],
-    agence: rowArray[COL_DEMANDES.AGENCE],
-    typeConge: rowArray[COL_DEMANDES.TYPE_CONGE],
-    motif: rowArray[COL_DEMANDES.MOTIF],
-    dateDebut: rowArray[COL_DEMANDES.DATE_DEBUT],
-    dateFin: rowArray[COL_DEMANDES.DATE_FIN],
-    nbJours: rowArray[COL_DEMANDES.NB_JOURS],
-    managerEmail: rowArray[COL_DEMANDES.MANAGER_EMAIL],
-    managerName: rowArray[COL_DEMANDES.MANAGER_NAME],
-    statut: rowArray[COL_DEMANDES.STATUT],
-    commentManager: rowArray[COL_DEMANDES.COMMENT_MANAGER],
-    avisRh: rowArray[COL_DEMANDES.AVIS_RH],
-    commentRh: rowArray[COL_DEMANDES.COMMENT_RH],
-    commentValidateur: rowArray[COL_DEMANDES.COMMENT_VALIDATEUR],
-    dateSubmit: rowArray[COL_DEMANDES.DATE_SUBMIT],
-    dateApprobation: rowArray[COL_DEMANDES.DATE_APPROBATION],
-    dateAvisRh: rowArray[COL_DEMANDES.DATE_AVIS_RH],
-    dateDecisionFinale: rowArray[COL_DEMANDES.DATE_DECISION_FINALE],
-    pdfUrl: rowArray[COL_DEMANDES.PDF_URL],
-    validateurFinalEmail: rowArray[COL_DEMANDES.VALIDATEUR_FINAL_EMAIL]
+    requestId: rowArray[COL_DEMANDES.REQUEST_ID] || '',
+    timestamp: safeDate(rowArray[COL_DEMANDES.TIMESTAMP]),
+    emailEmp: rowArray[COL_DEMANDES.EMAIL_EMP] || '',
+    matricule: rowArray[COL_DEMANDES.MATRICULE] || '',
+    nom: rowArray[COL_DEMANDES.NOM] || '',
+    prenom: rowArray[COL_DEMANDES.PRENOM] || '',
+    poste: rowArray[COL_DEMANDES.POSTE] || '',
+    departement: rowArray[COL_DEMANDES.DEPARTEMENT] || '',
+    agence: rowArray[COL_DEMANDES.AGENCE] || '',
+    typeConge: rowArray[COL_DEMANDES.TYPE_CONGE] || '',
+    motif: rowArray[COL_DEMANDES.MOTIF] || '',
+    dateDebut: safeDate(rowArray[COL_DEMANDES.DATE_DEBUT]),
+    dateFin: safeDate(rowArray[COL_DEMANDES.DATE_FIN]),
+    nbJours: Number(rowArray[COL_DEMANDES.NB_JOURS]) || 0,
+    managerEmail: rowArray[COL_DEMANDES.MANAGER_EMAIL] || '',
+    managerName: rowArray[COL_DEMANDES.MANAGER_NAME] || '',
+    statut: rowArray[COL_DEMANDES.STATUT] || '',
+    commentManager: rowArray[COL_DEMANDES.COMMENT_MANAGER] || '',
+    avisRh: rowArray[COL_DEMANDES.AVIS_RH] || '',
+    commentRh: rowArray[COL_DEMANDES.COMMENT_RH] || '',
+    commentValidateur: rowArray[COL_DEMANDES.COMMENT_VALIDATEUR] || '',
+    dateSubmit: safeDate(rowArray[COL_DEMANDES.DATE_SUBMIT]),
+    dateApprobation: safeDate(rowArray[COL_DEMANDES.DATE_APPROBATION]),
+    dateAvisRh: safeDate(rowArray[COL_DEMANDES.DATE_AVIS_RH]),
+    dateDecisionFinale: safeDate(rowArray[COL_DEMANDES.DATE_DECISION_FINALE]),
+    pdfUrl: rowArray[COL_DEMANDES.PDF_URL] || '',
+    validateurFinalEmail: rowArray[COL_DEMANDES.VALIDATEUR_FINAL_EMAIL] || ''
   };
 }
 
@@ -193,18 +199,18 @@ function buildEmployeeObject(rowArray) {
   if (!rowArray || rowArray.length === 0) return null;
 
   return {
-    email: rowArray[COL_EMPLOYES.EMAIL],
-    matricule: rowArray[COL_EMPLOYES.MATRICULE],
-    nom: rowArray[COL_EMPLOYES.NOM],
-    prenom: rowArray[COL_EMPLOYES.PRENOM],
-    poste: rowArray[COL_EMPLOYES.POSTE],
-    departement: rowArray[COL_EMPLOYES.DEPARTEMENT],
-    agence: rowArray[COL_EMPLOYES.AGENCE],
-    managerEmail: rowArray[COL_EMPLOYES.MANAGER_EMAIL],
-    role: rowArray[COL_EMPLOYES.ROLE],
-    soldeConges: rowArray[COL_EMPLOYES.SOLDE_CONGES],
-    soldeInitial: rowArray[COL_EMPLOYES.SOLDE_INITIAL],
-    actif: rowArray[COL_EMPLOYES.ACTIF]
+    email: rowArray[COL_EMPLOYES.EMAIL] || '',
+    matricule: rowArray[COL_EMPLOYES.MATRICULE] || '',
+    nom: rowArray[COL_EMPLOYES.NOM] || '',
+    prenom: rowArray[COL_EMPLOYES.PRENOM] || '',
+    poste: rowArray[COL_EMPLOYES.POSTE] || '',
+    departement: rowArray[COL_EMPLOYES.DEPARTEMENT] || '',
+    agence: rowArray[COL_EMPLOYES.AGENCE] || '',
+    managerEmail: rowArray[COL_EMPLOYES.MANAGER_EMAIL] || '',
+    role: rowArray[COL_EMPLOYES.ROLE] || '',
+    soldeConges: Number(rowArray[COL_EMPLOYES.SOLDE_CONGES]) || 0,
+    soldeInitial: Number(rowArray[COL_EMPLOYES.SOLDE_INITIAL]) || 0,
+    actif: rowArray[COL_EMPLOYES.ACTIF] === true || rowArray[COL_EMPLOYES.ACTIF] === 'TRUE' || rowArray[COL_EMPLOYES.ACTIF] === 'Oui'
   };
 }
 
