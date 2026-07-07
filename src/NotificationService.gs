@@ -141,62 +141,6 @@ function NotificationService_onTransition(actionKey, requestData, actorProfile) 
 }
 
 /**
- * Notification quand l'etape N1 est sautee (manager = DG ou DC)
- * La demande passe directement a l'avis RH
- */
-function NotificationService_onSkipN1(requestData, userProfile) {
-  var webappUrl = SheetDAO_getConfigValue('WEBAPP_URL');
-  var institutionName = SheetDAO_getConfigValue('NOM_INSTITUTION') || 'Microfinance SA';
-  var hrEmails = SheetDAO_getConfigValue('HR_EMAILS');
-
-  // Email a l'employe (confirmation + info skip)
-  sendNotificationEmail_({
-    to: requestData.emailEmp,
-    subject: institutionName + ' - Demande de conge soumise',
-    recipientName: requestData.prenom + ' ' + requestData.nom,
-    message: 'Votre demande de conge a ete soumise avec succes. Votre responsable etant membre de la Direction, votre demande est transmise directement aux Ressources Humaines pour avis.',
-    requestData: requestData,
-    webappUrl: webappUrl,
-    institutionName: institutionName,
-    buttonText: 'Voir ma demande'
-  });
-
-  // Notifier le DG/DC qui est le N+1 declare
-  if (requestData.managerEmail) {
-    sendNotificationEmail_({
-      to: requestData.managerEmail,
-      subject: institutionName + ' - Demande de conge transmise aux RH',
-      recipientName: requestData.managerName || 'Direction',
-      message: 'La demande de conge de ' + requestData.prenom + ' ' + requestData.nom + ' a ete transmise directement aux Ressources Humaines pour avis. Aucune action de votre part n\'est requise.',
-      requestData: requestData,
-      webappUrl: webappUrl,
-      institutionName: institutionName,
-      buttonText: 'Voir la demande'
-    });
-  }
-
-  // Email aux RH (action requise directement)
-  if (hrEmails) {
-    var hrList = hrEmails.split(',');
-    for (var i = 0; i < hrList.length; i++) {
-      var hrEmail = hrList[i].trim();
-      if (hrEmail) {
-        sendNotificationEmail_({
-          to: hrEmail,
-          subject: institutionName + ' - Demande en attente de votre avis RH',
-          recipientName: 'Service RH',
-          message: 'La demande de conge de ' + requestData.prenom + ' ' + requestData.nom + ' necessite votre avis. L\'etape d\'approbation N1 a ete sautee car le responsable est membre de la Direction.',
-          requestData: requestData,
-          webappUrl: webappUrl,
-          institutionName: institutionName,
-          buttonText: 'Donner mon avis'
-        });
-      }
-    }
-  }
-}
-
-/**
  * Envoie un email de notification avec le template standard
  */
 function sendNotificationEmail_(params) {
