@@ -9,8 +9,9 @@ var TRANSITIONS = {};
 TRANSITIONS[ACTIONS.APPROVE_N1] = {
   fromStatus: [STATUS.SOUMIS],
   toStatus: STATUS.APPROUVE_N1,
-  allowedRoles: [ROLES.CHEF_AGENCE, ROLES.CHEF_AGENCE_SENIOR, ROLES.CHEF_DEPARTEMENT],
-  requiresRelation: 'IS_MANAGER',
+  allowedRoles: [ROLES.CHEF_AGENCE, ROLES.CHEF_AGENCE_SENIOR, ROLES.CHEF_DEPARTEMENT,
+                 ROLES.DIRECTEUR_CLIENTELE, ROLES.DIRECTEUR_GENERAL],
+  requiresRelation: 'IS_MANAGER_OR_DIRECTOR',
   timestampCol: COL_DEMANDES.DATE_APPROBATION,
   commentCol: COL_DEMANDES.COMMENT_MANAGER,
   requireComment: false
@@ -19,8 +20,9 @@ TRANSITIONS[ACTIONS.APPROVE_N1] = {
 TRANSITIONS[ACTIONS.REJECT_N1] = {
   fromStatus: [STATUS.SOUMIS],
   toStatus: STATUS.REJETE_N1,
-  allowedRoles: [ROLES.CHEF_AGENCE, ROLES.CHEF_AGENCE_SENIOR, ROLES.CHEF_DEPARTEMENT],
-  requiresRelation: 'IS_MANAGER',
+  allowedRoles: [ROLES.CHEF_AGENCE, ROLES.CHEF_AGENCE_SENIOR, ROLES.CHEF_DEPARTEMENT,
+                 ROLES.DIRECTEUR_CLIENTELE, ROLES.DIRECTEUR_GENERAL],
+  requiresRelation: 'IS_MANAGER_OR_DIRECTOR',
   timestampCol: COL_DEMANDES.DATE_APPROBATION,
   commentCol: COL_DEMANDES.COMMENT_MANAGER,
   requireComment: true
@@ -206,6 +208,17 @@ function checkRelation_(requestRow, userProfile, relationType) {
 
   switch (relationType) {
     case 'IS_MANAGER':
+      return String(requestRow[COL_DEMANDES.MANAGER_EMAIL]).toLowerCase() === email;
+
+    case 'IS_MANAGER_OR_DIRECTOR':
+      // DG peut approuver n'importe quelle demande
+      if (userProfile.role === ROLES.DIRECTEUR_GENERAL) return true;
+      // DC peut approuver toute demande d'agence
+      if (userProfile.role === ROLES.DIRECTEUR_CLIENTELE) {
+        var agence = String(requestRow[COL_DEMANDES.AGENCE] || '');
+        return agence !== '';
+      }
+      // N+1 classique
       return String(requestRow[COL_DEMANDES.MANAGER_EMAIL]).toLowerCase() === email;
 
     case 'IS_OWNER':

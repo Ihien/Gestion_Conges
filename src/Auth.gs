@@ -104,9 +104,16 @@ function canActOnRequest(requestRow, actionKey, userProfile) {
   switch (actionKey) {
     case ACTIONS.APPROVE_N1:
     case ACTIONS.REJECT_N1:
-      // Le N+1 (chef agence, chef agence senior, chef departement) approuve/rejette
-      return currentStatut === STATUS.SOUMIS &&
-             (role === ROLES.CHEF_AGENCE || role === ROLES.CHEF_AGENCE_SENIOR || role === ROLES.CHEF_DEPARTEMENT) &&
+      if (currentStatut !== STATUS.SOUMIS) return false;
+      // DG peut approuver/rejeter n'importe quelle demande
+      if (role === ROLES.DIRECTEUR_GENERAL) return true;
+      // DC peut approuver/rejeter toute demande d'agence (y compris chefs d'agence)
+      if (role === ROLES.DIRECTEUR_CLIENTELE) {
+        var agence = String(requestRow[COL_DEMANDES.AGENCE] || '');
+        return agence !== '';
+      }
+      // N+1 classique
+      return (role === ROLES.CHEF_AGENCE || role === ROLES.CHEF_AGENCE_SENIOR || role === ROLES.CHEF_DEPARTEMENT) &&
              requestRow[COL_DEMANDES.MANAGER_EMAIL].toLowerCase() === email.toLowerCase();
 
     case ACTIONS.AVIS_FAVORABLE:
