@@ -161,6 +161,20 @@ function NotificationService_onSkipN1(requestData, userProfile) {
     buttonText: 'Voir ma demande'
   });
 
+  // Notifier le DG/DC qui est le N+1 declare
+  if (requestData.managerEmail) {
+    sendNotificationEmail_({
+      to: requestData.managerEmail,
+      subject: institutionName + ' - Demande de conge transmise aux RH',
+      recipientName: requestData.managerName || 'Direction',
+      message: 'La demande de conge de ' + requestData.prenom + ' ' + requestData.nom + ' a ete transmise directement aux Ressources Humaines pour avis. Aucune action de votre part n\'est requise.',
+      requestData: requestData,
+      webappUrl: webappUrl,
+      institutionName: institutionName,
+      buttonText: 'Voir la demande'
+    });
+  }
+
   // Email aux RH (action requise directement)
   if (hrEmails) {
     var hrList = hrEmails.split(',');
