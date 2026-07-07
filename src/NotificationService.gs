@@ -95,23 +95,21 @@ function NotificationService_onTransition(actionKey, requestData, actorProfile) 
 
     case ACTIONS.AVIS_FAVORABLE:
     case ACTIONS.AVIS_DEFAVORABLE:
+      // DG/DC ne recoivent pas de notification - ils consultent l'application
+      // On notifie uniquement l'employe de l'avancement
       var avisText = actionKey === ACTIONS.AVIS_FAVORABLE ? 'favorable' : 'defavorable';
-      var finalValidatorEmail = determineFinalValidatorEmail_(requestData);
-      if (finalValidatorEmail) {
-        sendNotificationEmail_({
-          to: finalValidatorEmail,
-          subject: institutionName + ' - Demande en attente de votre decision finale',
-          recipientName: 'Direction',
-          message: 'La demande de conge de ' + requestData.prenom + ' ' + requestData.nom +
-            ' a recu un avis RH ' + avisText + '.' +
-            (requestData.commentRh ? ' Commentaire RH : ' + requestData.commentRh : '') +
-            ' Votre decision finale est requise.',
-          requestData: requestData,
-          webappUrl: webappUrl,
-          institutionName: institutionName,
-          buttonText: 'Prendre la decision'
-        });
-      }
+      sendNotificationEmail_({
+        to: requestData.emailEmp,
+        subject: institutionName + ' - Avis RH ' + avisText + ' sur votre demande',
+        recipientName: requestData.prenom + ' ' + requestData.nom,
+        message: 'Votre demande de conge a recu un avis RH ' + avisText + '.' +
+          (requestData.commentRh ? ' Commentaire RH : ' + requestData.commentRh : '') +
+          ' Elle est maintenant en attente de la decision finale de la Direction.',
+        requestData: requestData,
+        webappUrl: webappUrl,
+        institutionName: institutionName,
+        buttonText: 'Voir ma demande'
+      });
       break;
 
     case ACTIONS.VALIDER:

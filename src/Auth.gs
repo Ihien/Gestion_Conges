@@ -70,8 +70,8 @@ function canViewRequest(requestRow, userProfile) {
     return true;
   }
 
-  // Chef d'agence : demandes de son agence + ses propres demandes
-  if (role === ROLES.CHEF_AGENCE) {
+  // Chef d'agence / Chef d'agence senior : demandes de son agence + ses propres demandes
+  if (role === ROLES.CHEF_AGENCE || role === ROLES.CHEF_AGENCE_SENIOR) {
     var requestAgence = requestRow[COL_DEMANDES.AGENCE];
     return requestAgence === userProfile.agence ||
            requestRow[COL_DEMANDES.EMAIL_EMP] === userProfile.email;
@@ -104,9 +104,9 @@ function canActOnRequest(requestRow, actionKey, userProfile) {
   switch (actionKey) {
     case ACTIONS.APPROVE_N1:
     case ACTIONS.REJECT_N1:
-      // Le manager direct peut approuver/rejeter quand le statut est Soumis
+      // Le N+1 (chef agence, chef agence senior, chef departement) approuve/rejette
       return currentStatut === STATUS.SOUMIS &&
-             (role === ROLES.CHEF_AGENCE || role === ROLES.CHEF_DEPARTEMENT) &&
+             (role === ROLES.CHEF_AGENCE || role === ROLES.CHEF_AGENCE_SENIOR || role === ROLES.CHEF_DEPARTEMENT) &&
              requestRow[COL_DEMANDES.MANAGER_EMAIL].toLowerCase() === email.toLowerCase();
 
     case ACTIONS.AVIS_FAVORABLE:
@@ -134,16 +134,14 @@ function canActOnRequest(requestRow, actionKey, userProfile) {
 
 /**
  * Verifie si l'utilisateur est le validateur final pour cette demande
- * Agence non-vide => DIRECTEUR_CLIENTELE
- * Agence vide (siege) => DIRECTEUR_GENERAL
+ * DG peut valider n'importe quelle demande (siege + agences)
+ * DC peut valider les demandes des agences
  */
 function isFinalValidator(requestRow, userProfile) {
+  if (userProfile.role === ROLES.DIRECTEUR_GENERAL) return true;
   var agence = requestRow[COL_DEMANDES.AGENCE];
-  if (agence && agence !== '') {
-    return userProfile.role === ROLES.DIRECTEUR_CLIENTELE;
-  } else {
-    return userProfile.role === ROLES.DIRECTEUR_GENERAL;
-  }
+  if (agence && agence !== '' && userProfile.role === ROLES.DIRECTEUR_CLIENTELE) return true;
+  return false;
 }
 
 /**

@@ -26,7 +26,7 @@ function toggleNav() {
 function updateNavbar(profile) {
   if (!profile) return;
   document.getElementById('user-name').textContent = profile.prenom + ' ' + profile.nom;
-  var roleLabels = {'EMPLOYE':'Employe','CHEF_AGENCE':'Chef Agence','CHEF_DEPARTEMENT':'Chef Dept.','RH':'RH','DIRECTEUR_CLIENTELE':'Dir. Clientele','DIRECTEUR_GENERAL':'Dir. General'};
+  var roleLabels = {'EMPLOYE':'Employe','CHEF_AGENCE':'Chef Agence','CHEF_AGENCE_SENIOR':'Chef Agence Sr.','CHEF_DEPARTEMENT':'Chef Dept.','RH':'RH','DIRECTEUR_CLIENTELE':'Dir. Clientele','DIRECTEUR_GENERAL':'Dir. General'};
   document.getElementById('user-role-badge').textContent = roleLabels[profile.role] || profile.role;
   if (profile.role === 'RH' || profile.role === 'DIRECTEUR_GENERAL') {
     document.getElementById('nav-admin').classList.remove('hidden');

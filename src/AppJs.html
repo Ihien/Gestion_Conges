@@ -112,7 +112,7 @@ function buildDetailField(label, value) {
 function loadMonProfil() {
   var p = App.userProfile;
   if (!p) { document.getElementById('app-content').innerHTML = '<div class="alert alert-danger">Profil non disponible</div>'; return; }
-  var roleLabels = {'EMPLOYE':'Employe','CHEF_AGENCE':'Chef d\'Agence','CHEF_DEPARTEMENT':'Chef de Departement','RH':'Ressources Humaines','DIRECTEUR_CLIENTELE':'Directeur Clientele','DIRECTEUR_GENERAL':'Directeur General'};
+  var roleLabels = {'EMPLOYE':'Employe','CHEF_AGENCE':'Chef d\'Agence','CHEF_AGENCE_SENIOR':'Chef d\'Agence Senior','CHEF_DEPARTEMENT':'Chef de Departement','RH':'Ressources Humaines','DIRECTEUR_CLIENTELE':'Directeur Clientele','DIRECTEUR_GENERAL':'Directeur General'};
   var html = '<div class="card"><div class="card-header"><h2 class="card-title">Mon Profil</h2></div><div class="detail-grid">';
   html += buildDetailField('Nom',p.nom) + buildDetailField('Prenom',p.prenom) + buildDetailField('Email',p.email);
   html += buildDetailField('Matricule',p.matricule) + buildDetailField('Poste',p.poste) + buildDetailField('Departement',p.departement);
