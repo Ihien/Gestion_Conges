@@ -141,10 +141,8 @@ function toFrenchStatusLabel(statusCode) {
   labels[STATUS.SOUMIS] = 'Soumis';
   labels[STATUS.APPROUVE_N1] = 'Approuve par le responsable';
   labels[STATUS.REJETE_N1] = 'Rejete par le responsable';
-  labels[STATUS.AVIS_RH_FAVORABLE] = 'Avis RH : Favorable';
-  labels[STATUS.AVIS_RH_DEFAVORABLE] = 'Avis RH : Defavorable';
-  labels[STATUS.VALIDE] = 'Valide (decision finale)';
-  labels[STATUS.REJETE_FINAL] = 'Rejete (decision finale)';
+  labels[STATUS.VALIDE] = 'Valide';
+  labels[STATUS.REJETE] = 'Rejete par les RH';
   labels[STATUS.ANNULE] = 'Annule';
   return labels[statusCode] || statusCode;
 }

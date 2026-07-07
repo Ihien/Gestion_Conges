@@ -111,16 +111,8 @@ function canActOnRequest(requestRow, actionKey, userProfile) {
 
     case ACTIONS.AVIS_FAVORABLE:
     case ACTIONS.AVIS_DEFAVORABLE:
-      // RH peut donner son avis quand le statut est Approuve N1
+      // RH donne son avis (decision finale) quand le statut est Approuve N1
       return currentStatut === STATUS.APPROUVE_N1 && role === ROLES.RH;
-
-    case ACTIONS.VALIDER:
-    case ACTIONS.REJETER_FINAL:
-      // Validateur final selon le type d'employe
-      if (currentStatut !== STATUS.AVIS_RH_FAVORABLE && currentStatut !== STATUS.AVIS_RH_DEFAVORABLE) {
-        return false;
-      }
-      return isFinalValidator(requestRow, userProfile);
 
     case ACTIONS.ANNULER:
       // L'employe peut annuler sa demande tant qu'elle est Soumise
@@ -130,18 +122,6 @@ function canActOnRequest(requestRow, actionKey, userProfile) {
     default:
       return false;
   }
-}
-
-/**
- * Verifie si l'utilisateur est le validateur final pour cette demande
- * DG peut valider n'importe quelle demande (siege + agences)
- * DC peut valider les demandes des agences
- */
-function isFinalValidator(requestRow, userProfile) {
-  if (userProfile.role === ROLES.DIRECTEUR_GENERAL) return true;
-  var agence = requestRow[COL_DEMANDES.AGENCE];
-  if (agence && agence !== '' && userProfile.role === ROLES.DIRECTEUR_CLIENTELE) return true;
-  return false;
 }
 
 /**

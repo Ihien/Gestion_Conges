@@ -210,7 +210,7 @@ function renderDetail(r) {
   }
 
   if (r.availableActions && r.availableActions.length > 0) {
-    var btnCfg = {'APPROVE_N1':{l:'Approuver',c:'btn-success'},'REJECT_N1':{l:'Rejeter',c:'btn-danger'},'AVIS_FAVORABLE':{l:'Avis Favorable',c:'btn-success'},'AVIS_DEFAVORABLE':{l:'Avis Defavorable',c:'btn-warning'},'VALIDER':{l:'Valider (Decision finale)',c:'btn-success'},'REJETER_FINAL':{l:'Rejeter (Decision finale)',c:'btn-danger'},'ANNULER':{l:'Annuler ma demande',c:'btn-outline'}};
+    var btnCfg = {'APPROVE_N1':{l:'Approuver',c:'btn-success'},'REJECT_N1':{l:'Rejeter',c:'btn-danger'},'AVIS_FAVORABLE':{l:'Valider (RH)',c:'btn-success'},'AVIS_DEFAVORABLE':{l:'Rejeter (RH)',c:'btn-danger'},'ANNULER':{l:'Annuler ma demande',c:'btn-outline'}};
     html += '<div class="card"><div class="card-header"><h3 class="card-title">Actions disponibles</h3></div><div style="display:flex;gap:8px;flex-wrap:wrap;">';
     for (var i = 0; i < r.availableActions.length; i++) {
       var a = r.availableActions[i], bc = btnCfg[a]||{l:a,c:'btn-outline'};
@@ -288,8 +288,6 @@ function adminLoadConfig() {
     +'<tr><td>NOM_INSTITUTION</td><td>Nom de l\'institution</td></tr>'
     +'<tr><td>WEBAPP_URL</td><td>URL de la Web App deployee</td></tr>'
     +'<tr><td>HR_EMAILS</td><td>Emails RH (separes par virgule)</td></tr>'
-    +'<tr><td>DIR_CLIENTELE_EMAIL</td><td>Email du Directeur Clientele</td></tr>'
-    +'<tr><td>DIR_GENERAL_EMAIL</td><td>Email du Directeur General</td></tr>'
     +'<tr><td>AUDIT_EMAILS</td><td>Emails Audit/Controle Permanent</td></tr>'
     +'<tr><td>PDF_TEMPLATE_DOC_ID</td><td>ID du Google Doc template PDF</td></tr>'
     +'<tr><td>ARCHIVE_FOLDER_ID</td><td>ID du dossier Drive archives</td></tr>'

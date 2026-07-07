@@ -94,87 +94,33 @@ function NotificationService_onTransition(actionKey, requestData, actorProfile) 
       break;
 
     case ACTIONS.AVIS_FAVORABLE:
-    case ACTIONS.AVIS_DEFAVORABLE:
-      // DG/DC ne recoivent pas de notification - ils consultent l'application
-      // On notifie uniquement l'employe de l'avancement
-      var avisText = actionKey === ACTIONS.AVIS_FAVORABLE ? 'favorable' : 'defavorable';
-      sendNotificationEmail_({
-        to: requestData.emailEmp,
-        subject: institutionName + ' - Avis RH ' + avisText + ' sur votre demande',
-        recipientName: requestData.prenom + ' ' + requestData.nom,
-        message: 'Votre demande de conge a recu un avis RH ' + avisText + '.' +
-          (requestData.commentRh ? ' Commentaire RH : ' + requestData.commentRh : '') +
-          ' Elle est maintenant en attente de la decision finale de la Direction.',
-        requestData: requestData,
-        webappUrl: webappUrl,
-        institutionName: institutionName,
-        buttonText: 'Voir ma demande'
-      });
-      break;
-
-    case ACTIONS.VALIDER:
+      // Avis favorable = demande validee (decision finale RH)
       sendNotificationEmail_({
         to: requestData.emailEmp,
         subject: institutionName + ' - Demande de conge VALIDEE',
         recipientName: requestData.prenom + ' ' + requestData.nom,
         message: 'Votre demande de conge du ' + formatDate(requestData.dateDebut) + ' au ' + formatDate(requestData.dateFin) +
-          ' (' + requestData.nbJours + ' jours) a ete validee. Vous recevrez votre fiche de conge par email.',
+          ' (' + requestData.nbJours + ' jours) a ete validee par les Ressources Humaines.',
         requestData: requestData,
         webappUrl: webappUrl,
         institutionName: institutionName,
         buttonText: 'Voir ma demande'
       });
-      // Notifier les RH
-      if (hrEmails) {
-        var hrList2 = hrEmails.split(',');
-        for (var j = 0; j < hrList2.length; j++) {
-          var hrEmail2 = hrList2[j].trim();
-          if (hrEmail2) {
-            sendNotificationEmail_({
-              to: hrEmail2,
-              subject: institutionName + ' - Demande de conge validee - ' + requestData.prenom + ' ' + requestData.nom,
-              recipientName: 'Service RH',
-              message: 'La demande de conge de ' + requestData.prenom + ' ' + requestData.nom + ' a ete validee.',
-              requestData: requestData,
-              webappUrl: webappUrl,
-              institutionName: institutionName,
-              buttonText: 'Voir la demande'
-            });
-          }
-        }
-      }
       break;
 
-    case ACTIONS.REJETER_FINAL:
+    case ACTIONS.AVIS_DEFAVORABLE:
+      // Avis defavorable = demande rejetee (decision finale RH)
       sendNotificationEmail_({
         to: requestData.emailEmp,
-        subject: institutionName + ' - Demande de conge rejetee (decision finale)',
+        subject: institutionName + ' - Demande de conge rejetee',
         recipientName: requestData.prenom + ' ' + requestData.nom,
-        message: 'Votre demande de conge a ete rejetee en decision finale.' +
-          (requestData.commentValidateur ? ' Commentaire : ' + requestData.commentValidateur : ''),
+        message: 'Votre demande de conge a ete rejetee par les Ressources Humaines.' +
+          (requestData.commentRh ? ' Commentaire : ' + requestData.commentRh : ''),
         requestData: requestData,
         webappUrl: webappUrl,
         institutionName: institutionName,
         buttonText: 'Voir les details'
       });
-      if (hrEmails) {
-        var hrList3 = hrEmails.split(',');
-        for (var k = 0; k < hrList3.length; k++) {
-          var hrEmail3 = hrList3[k].trim();
-          if (hrEmail3) {
-            sendNotificationEmail_({
-              to: hrEmail3,
-              subject: institutionName + ' - Demande rejetee - ' + requestData.prenom + ' ' + requestData.nom,
-              recipientName: 'Service RH',
-              message: 'La demande de conge de ' + requestData.prenom + ' ' + requestData.nom + ' a ete rejetee en decision finale.',
-              requestData: requestData,
-              webappUrl: webappUrl,
-              institutionName: institutionName,
-              buttonText: 'Voir la demande'
-            });
-          }
-        }
-      }
       break;
 
     case ACTIONS.ANNULER:
@@ -233,17 +179,6 @@ function NotificationService_onSkipN1(requestData, userProfile) {
         });
       }
     }
-  }
-}
-
-/**
- * Determine l'email du validateur final
- */
-function determineFinalValidatorEmail_(requestData) {
-  if (requestData.agence && requestData.agence !== '') {
-    return SheetDAO_getConfigValue('DIR_CLIENTELE_EMAIL');
-  } else {
-    return SheetDAO_getConfigValue('DIR_GENERAL_EMAIL');
   }
 }
 

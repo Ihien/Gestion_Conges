@@ -48,18 +48,15 @@ function renderTableDemandes(requests, options) {
 
 // ===== TIMELINE STATUT =====
 function renderTimelineStatut(request) {
-  // Detecter si l'etape N1 a ete sautee (auto-approbation par Direction)
   var n1Skipped = request.commentManager && request.commentManager.indexOf('automatique') !== -1;
 
   var steps = [
     { label: 'Soumis', dateField: 'dateSubmit' },
     { label: n1Skipped ? 'N1 (saute)' : 'Approuve N1', dateField: 'dateApprobation' },
-    { label: 'Avis RH', dateField: 'dateAvisRh' },
-    { label: 'Decision finale', dateField: 'dateDecisionFinale' }
+    { label: 'Decision RH', dateField: 'dateAvisRh' }
   ];
 
-  var stepStates = getStepStates(request.statut, request);
-  // Si N1 saute, marquer l'etape N1 comme 'skipped' visuellement
+  var stepStates = getStepStates(request.statut);
   if (n1Skipped && stepStates[1].dotClass === 'completed') {
     stepStates[1].dotClass = 'skipped';
   }
@@ -91,15 +88,13 @@ function renderTimelineStatut(request) {
 }
 
 function getStepStates(statut) {
-  var s = [{dotClass:''},{dotClass:''},{dotClass:''},{dotClass:''}];
+  var s = [{dotClass:''},{dotClass:''},{dotClass:''}];
   switch (statut) {
     case 'Soumis': s[0]={dotClass:'completed'}; s[1]={dotClass:'current'}; break;
     case 'Approuve N1': s[0]={dotClass:'completed'}; s[1]={dotClass:'completed'}; s[2]={dotClass:'current'}; break;
     case 'Rejete N1': s[0]={dotClass:'completed'}; s[1]={dotClass:'rejected'}; break;
-    case 'Avis RH Favorable': case 'Avis RH Defavorable':
-      s[0]={dotClass:'completed'}; s[1]={dotClass:'completed'}; s[2]={dotClass:'completed'}; s[3]={dotClass:'current'}; break;
-    case 'Valide': s[0]={dotClass:'completed'}; s[1]={dotClass:'completed'}; s[2]={dotClass:'completed'}; s[3]={dotClass:'completed'}; break;
-    case 'Rejete Final': s[0]={dotClass:'completed'}; s[1]={dotClass:'completed'}; s[2]={dotClass:'completed'}; s[3]={dotClass:'rejected'}; break;
+    case 'Valide': s[0]={dotClass:'completed'}; s[1]={dotClass:'completed'}; s[2]={dotClass:'completed'}; break;
+    case 'Rejete': s[0]={dotClass:'completed'}; s[1]={dotClass:'completed'}; s[2]={dotClass:'rejected'}; break;
     case 'Annule': s[0]={dotClass:'rejected'}; break;
   }
   return s;
@@ -108,16 +103,14 @@ function getStepStates(statut) {
 // ===== MODAL ACTION =====
 function showActionModal(actionKey, requestId) {
   var cfg = {
-    'APPROVE_N1':      {title:'Approuver la demande',              btnText:'Approuver',              btnClass:'btn-success'},
-    'REJECT_N1':       {title:'Rejeter la demande',                btnText:'Rejeter',                btnClass:'btn-danger'},
-    'AVIS_FAVORABLE':  {title:'Donner un avis favorable',          btnText:'Avis Favorable',         btnClass:'btn-success'},
-    'AVIS_DEFAVORABLE':{title:'Donner un avis defavorable',        btnText:'Avis Defavorable',       btnClass:'btn-warning'},
-    'VALIDER':         {title:'Valider la demande (decision finale)',btnText:'Valider',               btnClass:'btn-success'},
-    'REJETER_FINAL':   {title:'Rejeter la demande (decision finale)',btnText:'Rejeter',               btnClass:'btn-danger'},
-    'ANNULER':         {title:'Annuler la demande',                 btnText:'Confirmer l\'annulation',btnClass:'btn-danger'}
+    'APPROVE_N1':      {title:'Approuver la demande',       btnText:'Approuver',              btnClass:'btn-success'},
+    'REJECT_N1':       {title:'Rejeter la demande',          btnText:'Rejeter',                btnClass:'btn-danger'},
+    'AVIS_FAVORABLE':  {title:'Valider la demande (avis favorable)', btnText:'Valider',        btnClass:'btn-success'},
+    'AVIS_DEFAVORABLE':{title:'Rejeter la demande (avis defavorable)', btnText:'Rejeter',      btnClass:'btn-danger'},
+    'ANNULER':         {title:'Annuler la demande',          btnText:'Confirmer l\'annulation',btnClass:'btn-danger'}
   };
   var c = cfg[actionKey] || {title:'Confirmer',btnText:'Confirmer',btnClass:'btn-primary'};
-  var commentRequired = ['REJECT_N1','AVIS_DEFAVORABLE','REJETER_FINAL'].indexOf(actionKey) !== -1;
+  var commentRequired = ['REJECT_N1','AVIS_DEFAVORABLE'].indexOf(actionKey) !== -1;
 
   var html = '<h3 class="modal-title">' + c.title + '</h3>';
   html += '<div class="form-group"><label class="form-label">Commentaire' + (commentRequired ? ' (obligatoire)' : ' (optionnel)') + '</label>';

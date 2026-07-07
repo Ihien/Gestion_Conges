@@ -28,7 +28,7 @@ TRANSITIONS[ACTIONS.REJECT_N1] = {
 
 TRANSITIONS[ACTIONS.AVIS_FAVORABLE] = {
   fromStatus: [STATUS.APPROUVE_N1],
-  toStatus: STATUS.AVIS_RH_FAVORABLE,
+  toStatus: STATUS.VALIDE,
   allowedRoles: [ROLES.RH],
   requiresRelation: null,
   timestampCol: COL_DEMANDES.DATE_AVIS_RH,
@@ -36,6 +36,7 @@ TRANSITIONS[ACTIONS.AVIS_FAVORABLE] = {
   extraUpdates: function() {
     var u = {};
     u[COL_DEMANDES.AVIS_RH] = 'Favorable';
+    u[COL_DEMANDES.DATE_DECISION_FINALE] = new Date();
     return u;
   },
   requireComment: false
@@ -43,7 +44,7 @@ TRANSITIONS[ACTIONS.AVIS_FAVORABLE] = {
 
 TRANSITIONS[ACTIONS.AVIS_DEFAVORABLE] = {
   fromStatus: [STATUS.APPROUVE_N1],
-  toStatus: STATUS.AVIS_RH_DEFAVORABLE,
+  toStatus: STATUS.REJETE,
   allowedRoles: [ROLES.RH],
   requiresRelation: null,
   timestampCol: COL_DEMANDES.DATE_AVIS_RH,
@@ -51,28 +52,9 @@ TRANSITIONS[ACTIONS.AVIS_DEFAVORABLE] = {
   extraUpdates: function() {
     var u = {};
     u[COL_DEMANDES.AVIS_RH] = 'Defavorable';
+    u[COL_DEMANDES.DATE_DECISION_FINALE] = new Date();
     return u;
   },
-  requireComment: true
-};
-
-TRANSITIONS[ACTIONS.VALIDER] = {
-  fromStatus: [STATUS.AVIS_RH_FAVORABLE, STATUS.AVIS_RH_DEFAVORABLE],
-  toStatus: STATUS.VALIDE,
-  allowedRoles: [ROLES.DIRECTEUR_CLIENTELE, ROLES.DIRECTEUR_GENERAL],
-  requiresRelation: 'IS_FINAL_VALIDATOR',
-  timestampCol: COL_DEMANDES.DATE_DECISION_FINALE,
-  commentCol: COL_DEMANDES.COMMENT_VALIDATEUR,
-  requireComment: false
-};
-
-TRANSITIONS[ACTIONS.REJETER_FINAL] = {
-  fromStatus: [STATUS.AVIS_RH_FAVORABLE, STATUS.AVIS_RH_DEFAVORABLE],
-  toStatus: STATUS.REJETE_FINAL,
-  allowedRoles: [ROLES.DIRECTEUR_CLIENTELE, ROLES.DIRECTEUR_GENERAL],
-  requiresRelation: 'IS_FINAL_VALIDATOR',
-  timestampCol: COL_DEMANDES.DATE_DECISION_FINALE,
-  commentCol: COL_DEMANDES.COMMENT_VALIDATEUR,
   requireComment: true
 };
 
@@ -158,11 +140,6 @@ function WorkflowEngine_processTransition(requestId, actionKey, comment, userPro
       }
     }
 
-    // Pour la validation finale, enregistrer le validateur
-    if (actionKey === ACTIONS.VALIDER || actionKey === ACTIONS.REJETER_FINAL) {
-      updates[COL_DEMANDES.VALIDATEUR_FINAL_EMAIL] = userProfile.email;
-    }
-
     // 8. Appliquer les mises a jour
     var rowNumber = SheetDAO_getRowNumber(SHEET_NAMES.DEMANDES, COL_DEMANDES.REQUEST_ID, requestId);
     SheetDAO_updateCells(SHEET_NAMES.DEMANDES, rowNumber, updates);
@@ -230,9 +207,6 @@ function checkRelation_(requestRow, userProfile, relationType) {
   switch (relationType) {
     case 'IS_MANAGER':
       return String(requestRow[COL_DEMANDES.MANAGER_EMAIL]).toLowerCase() === email;
-
-    case 'IS_FINAL_VALIDATOR':
-      return isFinalValidator(requestRow, userProfile);
 
     case 'IS_OWNER':
       return String(requestRow[COL_DEMANDES.EMAIL_EMP]).toLowerCase() === email;
