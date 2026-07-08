@@ -13,13 +13,22 @@ function LeaveService_submitRequest(formData, userProfile) {
   }
 
   var typeConge = sanitizeInput(formData.typeConge);
-  if (typeConge !== LEAVE_TYPES.PAID && typeConge !== LEAVE_TYPES.EXCEPTIONAL) {
+  var validTypes = Object.values(LEAVE_TYPES);
+  if (validTypes.indexOf(typeConge) === -1) {
     throw new Error('Type de conge invalide.');
   }
 
   var motif = sanitizeInput(formData.motif || '');
-  if (typeConge === LEAVE_TYPES.EXCEPTIONAL && !motif) {
-    throw new Error('Le motif est obligatoire pour une absence exceptionnelle.');
+  if (LEAVE_TYPES_REQUIRE_MOTIF.indexOf(typeConge) !== -1 && !motif) {
+    throw new Error('Le motif/justificatif est obligatoire pour ce type de conge.');
+  }
+
+  if (LEAVE_TYPE_MAX_DAYS[typeConge]) {
+    var maxDays = LEAVE_TYPE_MAX_DAYS[typeConge];
+    var estimatedDays = calculateBusinessDays(parseDate(formData.dateDebut), parseDate(formData.dateFin));
+    if (estimatedDays > maxDays) {
+      throw new Error('Duree maximale pour ' + typeConge + ' : ' + maxDays + ' jours.');
+    }
   }
 
   var dateDebut = parseDate(formData.dateDebut);
@@ -38,8 +47,8 @@ function LeaveService_submitRequest(formData, userProfile) {
     throw new Error('Le nombre de jours ouvres doit etre superieur a 0.');
   }
 
-  // Verifier le solde pour les conges payes
-  if (typeConge === LEAVE_TYPES.PAID) {
+  // Verifier le solde pour les types qui deduisent le solde
+  if (LEAVE_TYPES_DEDUCT_BALANCE.indexOf(typeConge) !== -1) {
     var solde = LeaveCounter_getBalance(userProfile.email);
     if (nbJours > solde) {
       throw new Error('Solde insuffisant. Solde actuel : ' + solde + ' jours. Demande : ' + nbJours + ' jours.');

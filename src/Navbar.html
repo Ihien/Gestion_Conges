@@ -1,13 +1,15 @@
 <nav class="navbar">
   <a class="navbar-brand" href="#" onclick="navigateTo('Dashboard'); return false;">
-    Gestion des Conges
+    SIRH
   </a>
 
   <button class="navbar-toggle" onclick="toggleNav()" aria-label="Menu">&#9776;</button>
 
   <ul class="navbar-nav" id="navbar-nav">
     <li><a class="nav-link" data-page="Dashboard" onclick="navigateTo('Dashboard'); return false;" href="#">Tableau de bord<span class="badge-count hidden" id="nav-pending-count"></span></a></li>
-    <li><a class="nav-link" data-page="NouvelDemande" onclick="navigateTo('NouvelDemande'); return false;" href="#">Nouvelle demande</a></li>
+    <li><a class="nav-link" data-page="NouvelDemande" onclick="navigateTo('NouvelDemande'); return false;" href="#">Nouveau conge</a></li>
+    <li><a class="nav-link" data-page="CalendrierEquipe" onclick="navigateTo('CalendrierEquipe'); return false;" href="#">Calendrier</a></li>
+    <li><a class="nav-link" data-page="Annuaire" onclick="navigateTo('Annuaire'); return false;" href="#">Annuaire</a></li>
     <li><a class="nav-link" data-page="MonProfil" onclick="navigateTo('MonProfil'); return false;" href="#">Mon profil</a></li>
     <li id="nav-admin" class="hidden"><a class="nav-link" data-page="Administration" onclick="navigateTo('Administration'); return false;" href="#">Administration</a></li>
   </ul>

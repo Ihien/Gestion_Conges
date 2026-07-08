@@ -30,8 +30,10 @@ function navigateTo(pageName, params) {
     case 'Dashboard':       loadDashboard(); break;
     case 'NouvelDemande':   loadNouvelDemande(); break;
     case 'DetailDemande':   loadDetailDemande(params); break;
-    case 'MonProfil':       loadMonProfil(); break;
-    case 'Administration':  loadAdministration(); break;
+    case 'CalendrierEquipe': loadCalendrierEquipe(); break;
+    case 'Annuaire':         loadAnnuaire(); break;
+    case 'MonProfil':        loadMonProfil(); break;
+    case 'Administration':   loadAdministration(); break;
     default: c.innerHTML = '<div class="alert alert-danger">Page non trouvee : ' + pageName + '</div>';
   }
 
@@ -107,30 +109,14 @@ function buildDetailField(label, value) {
   return '<div class="detail-field"><div class="detail-label">' + escapeHtml(label) + '</div><div class="detail-value">' + escapeHtml(String(value||'-')) + '</div></div>';
 }
 
-// ===== MON PROFIL =====
-function loadMonProfil() {
-  var p = App.userProfile;
-  if (!p) { document.getElementById('app-content').innerHTML = '<div class="alert alert-danger">Profil non disponible</div>'; return; }
-  var roleLabels = {'EMPLOYE':'Employe','CHEF_AGENCE':'Chef d\'Agence','CHEF_AGENCE_SENIOR':'Chef d\'Agence Senior','CHEF_DEPARTEMENT':'Chef de Departement','RH':'Ressources Humaines','DIRECTEUR_CLIENTELE':'Directeur Clientele','DIRECTEUR_GENERAL':'Directeur General'};
-  var html = '<div class="card"><div class="card-header"><h2 class="card-title">Mon Profil</h2></div><div class="detail-grid">';
-  html += buildDetailField('Nom',p.nom) + buildDetailField('Prenom',p.prenom) + buildDetailField('Email',p.email);
-  html += buildDetailField('Matricule',p.matricule) + buildDetailField('Poste',p.poste) + buildDetailField('Departement',p.departement);
-  html += buildDetailField('Agence',p.agence||'Siege') + buildDetailField('Role',roleLabels[p.role]||p.role);
-  html += '</div></div>';
-  html += '<div class="card"><div class="card-header"><h2 class="card-title">Solde de Conges</h2></div><div class="stats-grid">';
-  html += '<div class="stat-card"><div class="stat-value">'+(p.soldeConges||0)+'</div><div class="stat-label">Jours restants</div></div>';
-  html += '<div class="stat-card"><div class="stat-value">'+(p.soldeInitial||30)+'</div><div class="stat-label">Allocation annuelle</div></div>';
-  html += '</div></div>';
-  document.getElementById('app-content').innerHTML = html;
-}
-
 // ===== VALIDATION FORMULAIRE =====
 var ValidationFormulaire = {
   validateDemandeForm: function(f) {
     var e = {};
     if (!f.matricule || !/^M\d{4}$/.test(f.matricule)) e.matricule = 'Le matricule doit etre au format M suivi de 4 chiffres (ex: M0001)';
     if (!f.typeConge) e.typeConge = 'Veuillez selectionner un type de conge';
-    if (f.typeConge === 'Absence exceptionnelle' && (!f.motif || !f.motif.trim())) e.motif = 'Le motif est obligatoire pour une absence exceptionnelle';
+    var motifTypes = ['Absence exceptionnelle', 'Conge maladie', 'Conge sans solde', 'Permission speciale'];
+    if (motifTypes.indexOf(f.typeConge) !== -1 && (!f.motif || !f.motif.trim())) e.motif = 'Le motif/justificatif est obligatoire pour ce type de conge';
     if (!f.dateDebut) e.dateDebut = 'La date de debut est obligatoire';
     if (!f.dateFin) e.dateFin = 'La date de fin est obligatoire';
     if (f.dateDebut && f.dateFin && new Date(f.dateFin) < new Date(f.dateDebut)) e.dateFin = 'La date de fin doit etre posterieure a la date de debut';

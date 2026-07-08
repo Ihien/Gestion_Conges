@@ -170,7 +170,7 @@ function WorkflowEngine_processTransition(requestId, actionKey, comment, userPro
       console.error('Erreur notification: ' + e.message);
     }
 
-    // Si valide: generer PDF et deduire le solde
+    // Si valide: generer PDF, deduire le solde, creer evenement Calendar
     if (transition.toStatus === STATUS.VALIDE) {
       try {
         var pdfUrl = PdfService_generateAndArchive(requestData, userProfile);
@@ -183,13 +183,20 @@ function WorkflowEngine_processTransition(requestId, actionKey, comment, userPro
         console.error('Erreur generation PDF: ' + e.message);
       }
 
-      // Deduire le solde si conges payes
-      if (requestData.typeConge === LEAVE_TYPES.PAID) {
+      // Deduire le solde si type concerne
+      if (LEAVE_TYPES_DEDUCT_BALANCE.indexOf(requestData.typeConge) !== -1) {
         try {
           LeaveCounter_deductLeave(requestData.emailEmp, requestData.nbJours);
         } catch (e) {
           console.error('Erreur deduction solde: ' + e.message);
         }
+      }
+
+      // Creer evenement Google Calendar
+      try {
+        CalendarService_createLeaveEvent(requestData);
+      } catch (e) {
+        console.error('Erreur Calendar: ' + e.message);
       }
     }
 

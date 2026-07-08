@@ -196,6 +196,11 @@ function buildRequestObject(rowArray) {
 function buildEmployeeObject(rowArray) {
   if (!rowArray || rowArray.length === 0) return null;
 
+  function safeDate(val) {
+    if (val instanceof Date) return formatDate(val);
+    return val ? String(val) : '';
+  }
+
   return {
     email: rowArray[COL_EMPLOYES.EMAIL] || '',
     matricule: rowArray[COL_EMPLOYES.MATRICULE] || '',
@@ -208,7 +213,24 @@ function buildEmployeeObject(rowArray) {
     role: rowArray[COL_EMPLOYES.ROLE] || '',
     soldeConges: Number(rowArray[COL_EMPLOYES.SOLDE_CONGES]) || 0,
     soldeInitial: Number(rowArray[COL_EMPLOYES.SOLDE_INITIAL]) || 0,
-    actif: rowArray[COL_EMPLOYES.ACTIF] === true || rowArray[COL_EMPLOYES.ACTIF] === 'TRUE' || rowArray[COL_EMPLOYES.ACTIF] === 'Oui'
+    actif: rowArray[COL_EMPLOYES.ACTIF] === true || rowArray[COL_EMPLOYES.ACTIF] === 'TRUE' || rowArray[COL_EMPLOYES.ACTIF] === 'Oui',
+    dateNaissance: safeDate(rowArray[COL_EMPLOYES.DATE_NAISSANCE]),
+    lieuNaissance: rowArray[COL_EMPLOYES.LIEU_NAISSANCE] || '',
+    nationalite: rowArray[COL_EMPLOYES.NATIONALITE] || '',
+    numCni: rowArray[COL_EMPLOYES.NUM_CNI] || '',
+    situationFamiliale: rowArray[COL_EMPLOYES.SITUATION_FAMILIALE] || '',
+    nbEnfants: Number(rowArray[COL_EMPLOYES.NB_ENFANTS]) || 0,
+    telephone: rowArray[COL_EMPLOYES.TELEPHONE] || '',
+    telephonePro: rowArray[COL_EMPLOYES.TELEPHONE_PRO] || '',
+    adresse: rowArray[COL_EMPLOYES.ADRESSE] || '',
+    contactUrgenceNom: rowArray[COL_EMPLOYES.CONTACT_URGENCE_NOM] || '',
+    contactUrgenceTel: rowArray[COL_EMPLOYES.CONTACT_URGENCE_TEL] || '',
+    contactUrgenceLien: rowArray[COL_EMPLOYES.CONTACT_URGENCE_LIEN] || '',
+    typeContrat: rowArray[COL_EMPLOYES.TYPE_CONTRAT] || '',
+    dateEmbauche: safeDate(rowArray[COL_EMPLOYES.DATE_EMBAUCHE]),
+    dateFinContrat: safeDate(rowArray[COL_EMPLOYES.DATE_FIN_CONTRAT]),
+    dateFinEssai: safeDate(rowArray[COL_EMPLOYES.DATE_FIN_ESSAI]),
+    photoUrl: rowArray[COL_EMPLOYES.PHOTO_URL] || ''
   };
 }
 

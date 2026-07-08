@@ -26,6 +26,7 @@ function createAllSheets() {
   createSheetIfNotExists_(ss, SHEET_NAMES.REFERENTIEL, HEADERS_REFERENTIEL);
   createSheetIfNotExists_(ss, SHEET_NAMES.AUDIT, HEADERS_AUDIT);
   createSheetIfNotExists_(ss, SHEET_NAMES.CONFIG, HEADERS_CONFIG);
+  createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.MOUVEMENTS, HEADERS_MOUVEMENTS);
 
   // Supprimer la feuille par defaut "Feuille 1" si elle existe et est vide
   var defaultSheet = ss.getSheetByName('Feuille 1') || ss.getSheetByName('Sheet1');
@@ -111,8 +112,8 @@ function populateReferentiel() {
   if (existingData.length > 1) return; // Deja peuplee
 
   // Determiner le nombre max de lignes
-  var maxRows = Math.max(DEPARTEMENTS.length, AGENCES.length, 2);
-  var types = [LEAVE_TYPES.PAID, LEAVE_TYPES.EXCEPTIONAL];
+  var types = Object.values(LEAVE_TYPES);
+  var maxRows = Math.max(DEPARTEMENTS.length, AGENCES.length, types.length);
 
   var data = [];
   for (var i = 0; i < maxRows; i++) {

@@ -25,7 +25,7 @@ function doGet(e) {
   template.pageParams = (e && e.parameter) ? JSON.stringify(e.parameter) : '{}';
 
   return template.evaluate()
-    .setTitle('Gestion des Conges')
+    .setTitle('SIRH - Gestion des Ressources Humaines')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 }
@@ -119,7 +119,10 @@ function server_getDropdownData() {
   return {
     departements: DEPARTEMENTS,
     agences: AGENCES,
-    typesConge: [LEAVE_TYPES.PAID, LEAVE_TYPES.EXCEPTIONAL]
+    typesConge: Object.values(LEAVE_TYPES),
+    typesContrat: CONTRACT_TYPES,
+    situationsFamiliales: SITUATIONS_FAMILIALES,
+    mouvementTypes: MOUVEMENT_TYPES
   };
 }
 
@@ -171,4 +174,82 @@ function server_calculateBusinessDays(startDate, endDate) {
   var start = parseDate(startDate);
   var end = parseDate(endDate);
   return calculateBusinessDays(start, end);
+}
+
+// ===================================================================
+// FONCTIONS SIRH ETENDUES
+// ===================================================================
+
+/**
+ * Retourne le profil complet enrichi d'un employe
+ */
+function server_getFullProfile(email) {
+  var profile = assertAuthenticated();
+  if (email && email !== profile.email) {
+    if (profile.role !== ROLES.RH && profile.role !== ROLES.DIRECTEUR_GENERAL) {
+      throw new Error('Acces refuse : seuls RH et DG peuvent consulter les profils complets.');
+    }
+  }
+  return PersonnelService_getFullProfile(email || profile.email);
+}
+
+/**
+ * Met a jour le profil complet d'un employe
+ */
+function server_updateFullProfile(data) {
+  assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return PersonnelService_updateFullProfile(data);
+}
+
+/**
+ * Retourne l'annuaire du personnel
+ */
+function server_getAnnuaire() {
+  var profile = assertAuthenticated();
+  return PersonnelService_getAnnuaire(profile);
+}
+
+/**
+ * Retourne les donnees de l'organigramme
+ */
+function server_getOrgChart() {
+  var profile = assertAuthenticated();
+  return PersonnelService_getOrgChart(profile);
+}
+
+/**
+ * Retourne les absences de l'equipe pour le calendrier
+ */
+function server_getTeamCalendar(year, month) {
+  var profile = assertAuthenticated();
+  return CalendarService_getTeamAbsences(profile, year, month);
+}
+
+/**
+ * Enregistre un mouvement de personnel
+ */
+function server_recordMovement(data) {
+  var profile = assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return PersonnelService_recordMovement(data, profile.email);
+}
+
+/**
+ * Retourne les mouvements d'un employe
+ */
+function server_getEmployeeMovements(email) {
+  var profile = assertAuthenticated();
+  if (email !== profile.email) {
+    if ([ROLES.RH, ROLES.DIRECTEUR_GENERAL].indexOf(profile.role) === -1) {
+      throw new Error('Acces refuse.');
+    }
+  }
+  return PersonnelService_getEmployeeMovements(email);
+}
+
+/**
+ * Retourne les alertes RH (echeances)
+ */
+function server_getAlerts() {
+  assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return PersonnelService_getAlerts();
 }

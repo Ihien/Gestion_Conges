@@ -1,7 +1,8 @@
 <script>
 /* =============================================================
  * Controllers.html
- * Dashboard, Formulaire (NouvelDemande), Detail, Administration
+ * Dashboard, Formulaire (NouvelDemande), Detail, CalendrierEquipe,
+ * Annuaire, MonProfil, Administration
  * ============================================================= */
 
 // =============================================================
@@ -66,15 +67,17 @@ function dashboardFilter(filter, el) {
   el.classList.add('active');
   var filtered;
   if (filter === 'all') filtered = DashboardState.myRequests;
-  else if (filter === 'en_cours') filtered = DashboardState.myRequests.filter(function(r){ return r.statut==='Approuve N1'||r.statut==='Avis RH Favorable'||r.statut==='Avis RH Defavorable'; });
-  else if (filter === 'rejete') filtered = DashboardState.myRequests.filter(function(r){ return r.statut==='Rejete N1'||r.statut==='Rejete Final'; });
+  else if (filter === 'en_cours') filtered = DashboardState.myRequests.filter(function(r){ return r.statut==='Approuve N1'; });
+  else if (filter === 'rejete') filtered = DashboardState.myRequests.filter(function(r){ return r.statut==='Rejete N1'||r.statut==='Rejete'; });
   else filtered = DashboardState.myRequests.filter(function(r){ return r.statut===filter; });
   document.getElementById('my-requests-table').innerHTML = renderTableDemandes(filtered, {showEmployee:false});
 }
 
 // =============================================================
-// NOUVELLE DEMANDE
+// NOUVELLE DEMANDE (7 types de conge)
 // =============================================================
+var MOTIF_REQUIRED_TYPES = ['Absence exceptionnelle', 'Conge maladie', 'Conge sans solde', 'Permission speciale'];
+
 function loadNouvelDemande() {
   var p = App.userProfile, c = document.getElementById('app-content');
   var html = '<div class="card"><div class="card-header"><h2 class="card-title">Nouvelle demande de conge</h2></div>';
@@ -93,9 +96,18 @@ function loadNouvelDemande() {
   html += '<hr style="margin:20px 0;border:none;border-top:1px solid var(--color-gray-200);">';
   html += '<h3 class="mb-8" style="font-size:1rem;color:var(--color-gray-700);">Details du conge</h3>';
   html += '<div class="form-row"><div class="form-group"><label class="form-label">Type de conge *</label>';
-  html += '<select name="typeConge" class="form-select" onchange="onTypeCongeChange(this.value)"><option value="">-- Selectionner --</option><option value="Conges payes">Conges payes</option><option value="Absence exceptionnelle">Absence exceptionnelle</option></select></div>';
+  html += '<select name="typeConge" class="form-select" onchange="onTypeCongeChange(this.value)">';
+  html += '<option value="">-- Selectionner --</option>';
+  html += '<option value="Conges payes">Conges payes</option>';
+  html += '<option value="Absence exceptionnelle">Absence exceptionnelle</option>';
+  html += '<option value="Conge maternite">Conge maternite</option>';
+  html += '<option value="Conge paternite">Conge paternite</option>';
+  html += '<option value="Conge maladie">Conge maladie</option>';
+  html += '<option value="Conge sans solde">Conge sans solde</option>';
+  html += '<option value="Permission speciale">Permission speciale</option>';
+  html += '</select></div>';
   html += '<div class="form-group"><label class="form-label">Solde actuel</label><div class="stat-card" style="padding:8px;text-align:center;"><span class="stat-value" style="font-size:1.5rem;">'+(p.soldeConges||0)+'</span><span class="stat-label"> jours</span></div></div></div>';
-  html += '<div class="form-group hidden" id="motif-group"><label class="form-label">Motif *</label><textarea name="motif" class="form-textarea" placeholder="Precisez le motif de l\'absence exceptionnelle..."></textarea></div>';
+  html += '<div class="form-group hidden" id="motif-group"><label class="form-label">Motif / Justificatif *</label><textarea name="motif" class="form-textarea" placeholder="Precisez le motif ou le justificatif..."></textarea></div>';
   html += '<div class="form-row"><div class="form-group"><label class="form-label">Date de debut *</label><input type="date" name="dateDebut" class="form-input" onchange="calcDays()"></div>';
   html += '<div class="form-group"><label class="form-label">Date de fin *</label><input type="date" name="dateFin" class="form-input" onchange="calcDays()"></div></div>';
   html += '<div class="form-group"><label class="form-label">Nombre de jours ouvres</label><div id="nb-jours-display" class="alert alert-info" style="display:inline-block;padding:8px 16px;">Selectionnez les dates</div><input type="hidden" name="nbJours" value="0"></div>';
@@ -116,7 +128,7 @@ function formField(label, name, type, value, readonly, placeholder) {
 }
 
 function onTypeCongeChange(val) {
-  document.getElementById('motif-group').classList.toggle('hidden', val !== 'Absence exceptionnelle');
+  document.getElementById('motif-group').classList.toggle('hidden', MOTIF_REQUIRED_TYPES.indexOf(val) === -1);
 }
 
 function calcDays() {
@@ -222,13 +234,251 @@ function renderDetail(r) {
 }
 
 // =============================================================
-// ADMINISTRATION
+// CALENDRIER EQUIPE
+// =============================================================
+var CalendarState = { year: new Date().getFullYear(), month: new Date().getMonth() + 1, absences: [] };
+
+function loadCalendrierEquipe() {
+  renderCalendrierEquipe(document.getElementById('app-content'));
+}
+
+function renderCalendrierEquipe(c) {
+  var y = CalendarState.year, m = CalendarState.month;
+  var monthNames = ['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
+
+  var html = '<div class="card"><div class="card-header">';
+  html += '<h2 class="card-title">Calendrier des absences</h2>';
+  html += '<div class="flex gap-8" style="align-items:center;">';
+  html += '<button class="btn btn-outline btn-sm" onclick="calendarNav(-1)">&larr;</button>';
+  html += '<span style="font-weight:600;min-width:160px;text-align:center;">' + monthNames[m-1] + ' ' + y + '</span>';
+  html += '<button class="btn btn-outline btn-sm" onclick="calendarNav(1)">&rarr;</button>';
+  html += '</div></div>';
+  html += '<div id="calendar-content"><div style="text-align:center;padding:40px;"><div class="spinner"></div></div></div></div>';
+  c.innerHTML = html;
+
+  serverCall('server_getTeamCalendar', [y, m]).then(function(absences) {
+    CalendarState.absences = absences || [];
+    document.getElementById('calendar-content').innerHTML = renderCalendarBody(y, m, CalendarState.absences);
+  }).catch(function(err) {
+    document.getElementById('calendar-content').innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+function calendarNav(delta) {
+  CalendarState.month += delta;
+  if (CalendarState.month > 12) { CalendarState.month = 1; CalendarState.year++; }
+  if (CalendarState.month < 1) { CalendarState.month = 12; CalendarState.year--; }
+  renderCalendrierEquipe(document.getElementById('app-content'));
+}
+
+function renderCalendarBody(year, month, absences) {
+  var daysInMonth = new Date(year, month, 0).getDate();
+  var firstDow = (new Date(year, month - 1, 1).getDay() + 6) % 7;
+  var dayNames = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+
+  var absMap = {};
+  for (var i = 0; i < absences.length; i++) {
+    var a = absences[i];
+    var start = parseClientDate(a.dateDebut);
+    var end = parseClientDate(a.dateFin);
+    if (!start || !end) continue;
+    var cur = new Date(Math.max(start.getTime(), new Date(year, month-1, 1).getTime()));
+    var last = new Date(Math.min(end.getTime(), new Date(year, month-1, daysInMonth).getTime()));
+    while (cur <= last) {
+      var dn = cur.getDate();
+      if (!absMap[dn]) absMap[dn] = [];
+      absMap[dn].push(a);
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+
+  var html = '<div class="calendar-grid">';
+  for (var d = 0; d < 7; d++) html += '<div class="calendar-header">' + dayNames[d] + '</div>';
+  for (var e = 0; e < firstDow; e++) html += '<div class="calendar-cell calendar-empty"></div>';
+
+  for (var day = 1; day <= daysInMonth; day++) {
+    var dow = (firstDow + day - 1) % 7;
+    var isWe = dow >= 5;
+    var dayAbs = absMap[day] || [];
+    html += '<div class="calendar-cell' + (isWe ? ' calendar-weekend' : '') + (dayAbs.length > 0 ? ' calendar-has-absence' : '') + '">';
+    html += '<div class="calendar-day-num">' + day + '</div>';
+    var shown = Math.min(dayAbs.length, 2);
+    for (var j = 0; j < shown; j++) {
+      html += '<div class="calendar-absence" title="' + escapeHtml(dayAbs[j].prenom + ' ' + dayAbs[j].nom + ' - ' + dayAbs[j].typeConge) + '">';
+      html += escapeHtml(dayAbs[j].prenom.charAt(0) + '. ' + dayAbs[j].nom);
+      html += '</div>';
+    }
+    if (dayAbs.length > 2) html += '<div class="calendar-more">+' + (dayAbs.length - 2) + '</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  if (absences.length > 0) {
+    html += '<h3 class="mt-16 mb-8" style="font-size:1rem;color:var(--color-gray-700);">Detail des absences (' + absences.length + ')</h3>';
+    html += '<div class="table-responsive"><table class="table"><thead><tr><th>Employe</th><th>Departement</th><th>Type</th><th>Du</th><th>Au</th><th>Statut</th></tr></thead><tbody>';
+    for (var k = 0; k < absences.length; k++) {
+      var ab = absences[k];
+      html += '<tr><td><strong>' + escapeHtml(ab.prenom + ' ' + ab.nom) + '</strong></td>';
+      html += '<td>' + escapeHtml(ab.departement) + '</td>';
+      html += '<td>' + escapeHtml(ab.typeConge) + '</td>';
+      html += '<td>' + escapeHtml(ab.dateDebut) + '</td>';
+      html += '<td>' + escapeHtml(ab.dateFin) + '</td>';
+      html += '<td>' + renderBadgeStatut(ab.statut) + '</td></tr>';
+    }
+    html += '</tbody></table></div>';
+  } else {
+    html += '<div class="table-empty"><div style="font-size:3rem;margin-bottom:12px;">&#128197;</div><p>Aucune absence ce mois-ci</p></div>';
+  }
+  return html;
+}
+
+function parseClientDate(str) {
+  if (!str) return null;
+  var parts = str.split('/');
+  if (parts.length === 3) return new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+  parts = str.split('-');
+  if (parts.length === 3) return new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  return null;
+}
+
+// =============================================================
+// ANNUAIRE
+// =============================================================
+var AnnuaireState = { employees: [] };
+
+function loadAnnuaire() {
+  var c = document.getElementById('app-content');
+  c.innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner"></div></div>';
+
+  serverCall('server_getAnnuaire').then(function(emps) {
+    AnnuaireState.employees = emps || [];
+    c.innerHTML = renderAnnuaire();
+  }).catch(function(err) {
+    c.innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+function renderAnnuaire() {
+  var html = '<div class="card"><div class="card-header"><h2 class="card-title">Annuaire du personnel</h2><span class="text-muted">' + AnnuaireState.employees.length + ' collaborateurs</span></div>';
+  html += '<div class="flex gap-8 mb-16" style="flex-wrap:wrap;align-items:center;">';
+  html += '<input type="text" class="form-input" style="max-width:300px;margin:0;" placeholder="Rechercher par nom, poste..." oninput="filterAnnuaire()" id="annuaire-search">';
+  html += '<select class="form-select" style="max-width:220px;margin:0;" onchange="filterAnnuaire()" id="annuaire-dept"><option value="">Tous les departements</option>';
+
+  var depts = [];
+  for (var i = 0; i < AnnuaireState.employees.length; i++) {
+    var dept = AnnuaireState.employees[i].departement;
+    if (dept && depts.indexOf(dept) === -1) depts.push(dept);
+  }
+  depts.sort();
+  for (var d = 0; d < depts.length; d++) html += '<option value="' + escapeHtml(depts[d]) + '">' + escapeHtml(depts[d]) + '</option>';
+  html += '</select></div>';
+  html += '<div id="annuaire-grid" class="annuaire-grid">' + renderAnnuaireCards(AnnuaireState.employees) + '</div></div>';
+  return html;
+}
+
+function renderAnnuaireCards(emps) {
+  if (emps.length === 0) return '<div class="table-empty"><p>Aucun collaborateur trouve</p></div>';
+  var html = '';
+  for (var i = 0; i < emps.length; i++) {
+    var e = emps[i];
+    var initials = ((e.prenom||'').charAt(0) + (e.nom||'').charAt(0)).toUpperCase();
+    html += '<div class="annuaire-card">';
+    html += '<div class="annuaire-avatar">' + escapeHtml(initials) + '</div>';
+    html += '<div class="annuaire-info">';
+    html += '<div class="annuaire-name">' + escapeHtml(e.prenom + ' ' + e.nom) + '</div>';
+    html += '<div class="annuaire-poste">' + escapeHtml(e.poste) + '</div>';
+    html += '<div class="annuaire-dept">' + escapeHtml(e.departement) + (e.agence ? ' - ' + escapeHtml(e.agence) : '') + '</div>';
+    if (e.telephonePro) html += '<div class="annuaire-tel">' + escapeHtml(e.telephonePro) + '</div>';
+    html += '<div class="annuaire-email">' + escapeHtml(e.email) + '</div>';
+    html += '</div></div>';
+  }
+  return html;
+}
+
+function filterAnnuaire() {
+  var q = (document.getElementById('annuaire-search').value || '').toLowerCase();
+  var dept = document.getElementById('annuaire-dept').value;
+  var filtered = AnnuaireState.employees.filter(function(e) {
+    var matchText = !q || (e.nom + ' ' + e.prenom + ' ' + e.poste + ' ' + e.email + ' ' + e.matricule).toLowerCase().indexOf(q) !== -1;
+    var matchDept = !dept || e.departement === dept;
+    return matchText && matchDept;
+  });
+  document.getElementById('annuaire-grid').innerHTML = renderAnnuaireCards(filtered);
+}
+
+// =============================================================
+// MON PROFIL (enrichi avec dossier complet)
+// =============================================================
+function loadMonProfil() {
+  var c = document.getElementById('app-content');
+  c.innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner"></div></div>';
+
+  serverCall('server_getFullProfile').then(function(p) {
+    if (!p) { c.innerHTML = '<div class="alert alert-danger">Profil non disponible</div>'; return; }
+    var roleLabels = {'EMPLOYE':'Employe','CHEF_AGENCE':'Chef d\'Agence','CHEF_AGENCE_SENIOR':'Chef d\'Agence Senior','CHEF_DEPARTEMENT':'Chef de Departement','RH':'Ressources Humaines','DIRECTEUR_CLIENTELE':'Directeur Clientele','DIRECTEUR_GENERAL':'Directeur General'};
+
+    var html = '<div class="card"><div class="card-header"><h2 class="card-title">Mon Profil</h2><span class="badge-statut badge-soumis">' + escapeHtml(roleLabels[p.role]||p.role) + '</span></div>';
+    html += '<div class="detail-grid">';
+    html += buildDetailField('Nom', p.nom) + buildDetailField('Prenom', p.prenom);
+    html += buildDetailField('Email', p.email) + buildDetailField('Matricule', p.matricule);
+    html += buildDetailField('Poste', p.poste) + buildDetailField('Departement', p.departement);
+    html += buildDetailField('Agence', p.agence || 'Siege');
+    if (p.anciennete) html += buildDetailField('Anciennete', p.anciennete);
+    html += '</div></div>';
+
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Etat civil</h2></div><div class="detail-grid">';
+    html += buildDetailField('Date de naissance', p.dateNaissance);
+    html += buildDetailField('Lieu de naissance', p.lieuNaissance);
+    html += buildDetailField('Nationalite', p.nationalite);
+    html += buildDetailField('N° CNI', p.numCni);
+    html += buildDetailField('Situation familiale', p.situationFamiliale);
+    html += buildDetailField('Nombre d\'enfants', p.nbEnfants);
+    html += '</div></div>';
+
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Coordonnees</h2></div><div class="detail-grid">';
+    html += buildDetailField('Telephone personnel', p.telephone);
+    html += buildDetailField('Telephone professionnel', p.telephonePro);
+    html += buildDetailField('Adresse', p.adresse);
+    html += '</div></div>';
+
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Contact d\'urgence</h2></div><div class="detail-grid">';
+    html += buildDetailField('Nom', p.contactUrgenceNom);
+    html += buildDetailField('Telephone', p.contactUrgenceTel);
+    html += buildDetailField('Lien de parente', p.contactUrgenceLien);
+    html += '</div></div>';
+
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Contrat</h2></div><div class="detail-grid">';
+    html += buildDetailField('Type de contrat', p.typeContrat);
+    html += buildDetailField('Date d\'embauche', p.dateEmbauche);
+    html += buildDetailField('Date fin de contrat', p.dateFinContrat);
+    html += buildDetailField('Date fin periode d\'essai', p.dateFinEssai);
+    html += '</div></div>';
+
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Solde de Conges</h2></div><div class="stats-grid">';
+    html += '<div class="stat-card"><div class="stat-value">'+(p.soldeConges||0)+'</div><div class="stat-label">Jours restants</div></div>';
+    html += '<div class="stat-card"><div class="stat-value">'+(p.soldeInitial||30)+'</div><div class="stat-label">Allocation annuelle</div></div>';
+    html += '</div></div>';
+
+    c.innerHTML = html;
+  }).catch(function(err) {
+    c.innerHTML = '<div class="alert alert-danger">Erreur : ' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+// =============================================================
+// ADMINISTRATION (etendue avec Mouvements et Alertes)
 // =============================================================
 function loadAdministration() {
   var c = document.getElementById('app-content'), role = App.userProfile.role;
   if (role !== 'RH' && role !== 'DIRECTEUR_GENERAL') { c.innerHTML='<div class="alert alert-danger">Acces reserve aux administrateurs.</div>'; return; }
   var html = '<div class="card"><div class="card-header"><h2 class="card-title">Administration</h2></div>';
-  html += '<div class="tabs"><div class="tab active" onclick="adminTab(\'employes\',this)">Employes</div><div class="tab" onclick="adminTab(\'soldes\',this)">Soldes</div><div class="tab" onclick="adminTab(\'config\',this)">Configuration</div></div>';
+  html += '<div class="tabs">';
+  html += '<div class="tab active" onclick="adminTab(\'employes\',this)">Employes</div>';
+  html += '<div class="tab" onclick="adminTab(\'soldes\',this)">Soldes</div>';
+  html += '<div class="tab" onclick="adminTab(\'mouvements\',this)">Mouvements</div>';
+  html += '<div class="tab" onclick="adminTab(\'alertes\',this)">Alertes</div>';
+  html += '<div class="tab" onclick="adminTab(\'config\',this)">Configuration</div>';
+  html += '</div>';
   html += '<div id="admin-tab-content"></div></div>';
   c.innerHTML = html;
   adminLoadEmployees();
@@ -240,6 +490,8 @@ function adminTab(tab, el) {
   el.classList.add('active');
   if (tab==='employes') adminLoadEmployees();
   else if (tab==='soldes') adminLoadSoldes();
+  else if (tab==='mouvements') adminLoadMouvements();
+  else if (tab==='alertes') adminLoadAlertes();
   else adminLoadConfig();
 }
 
@@ -248,13 +500,14 @@ function adminLoadEmployees() {
   ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
   serverCall('server_getEmployeeList').then(function(emps) {
     var html = '<div class="mb-16"><input type="text" class="form-input" style="max-width:300px;" placeholder="Rechercher..." oninput="adminFilterEmp(this.value)"></div>';
-    html += '<div class="table-responsive"><table class="table" id="admin-emp-table"><thead><tr><th>Matricule</th><th>Nom</th><th>Prenom</th><th>Departement</th><th>Agence</th><th>Role</th><th>Solde</th><th>Actif</th></tr></thead><tbody>';
+    html += '<div class="table-responsive"><table class="table" id="admin-emp-table"><thead><tr><th>Matricule</th><th>Nom</th><th>Prenom</th><th>Departement</th><th>Agence</th><th>Role</th><th>Contrat</th><th>Solde</th><th>Actif</th></tr></thead><tbody>';
     for (var i=0;i<emps.length;i++) {
       var e = emps[i];
       html += '<tr data-s="'+escapeHtml((e.matricule+' '+e.nom+' '+e.prenom+' '+e.departement).toLowerCase())+'">';
       html += '<td>'+escapeHtml(e.matricule)+'</td><td>'+escapeHtml(e.nom)+'</td><td>'+escapeHtml(e.prenom)+'</td>';
       html += '<td>'+escapeHtml(e.departement)+'</td><td>'+escapeHtml(e.agence||'Siege')+'</td>';
       html += '<td><span class="badge-statut badge-soumis">'+escapeHtml(e.role)+'</span></td>';
+      html += '<td>'+escapeHtml(e.typeContrat||'-')+'</td>';
       html += '<td>'+(e.soldeConges||0)+'</td><td>'+(e.actif===true||e.actif==='TRUE'?'Oui':'Non')+'</td></tr>';
     }
     html += '</tbody></table></div>';
@@ -281,6 +534,111 @@ function adminLoadSoldes() {
   }).catch(function(err) { ct.innerHTML='<div class="alert alert-danger">'+escapeHtml(err.message)+'</div>'; });
 }
 
+function adminLoadMouvements() {
+  var ct = document.getElementById('admin-tab-content');
+  var html = '<div class="mb-16"><button class="btn btn-primary" onclick="showNewMovementModal()">+ Nouveau mouvement</button></div>';
+  html += '<div class="flex gap-8 mb-16" style="flex-wrap:wrap;align-items:flex-end;">';
+  html += '<div class="form-group" style="margin:0;"><label class="form-label">Email de l\'employe</label>';
+  html += '<input type="text" class="form-input" style="max-width:300px;" placeholder="employe@email.com" id="mouvement-email"></div>';
+  html += '<button class="btn btn-outline" onclick="loadEmployeeMouvements()">Rechercher</button></div>';
+  html += '<div id="mouvements-list"></div>';
+  ct.innerHTML = html;
+}
+
+function loadEmployeeMouvements() {
+  var email = document.getElementById('mouvement-email').value.trim();
+  if (!email) { showToast('Veuillez entrer un email','error'); return; }
+  var ct = document.getElementById('mouvements-list');
+  ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
+  serverCall('server_getEmployeeMovements', email).then(function(mouvements) {
+    if (!mouvements || mouvements.length === 0) { ct.innerHTML = '<div class="alert alert-info">Aucun mouvement enregistre pour cet employe.</div>'; return; }
+    var html = '<div class="table-responsive"><table class="table"><thead><tr><th>Date</th><th>Type</th><th>Ancien poste</th><th>Nouveau poste</th><th>Ancien dept</th><th>Nouveau dept</th><th>Date effet</th></tr></thead><tbody>';
+    for (var i = 0; i < mouvements.length; i++) {
+      var m = mouvements[i];
+      html += '<tr><td>' + escapeHtml(m.dateMouvement) + '</td><td><span class="badge-statut badge-soumis">' + escapeHtml(m.type) + '</span></td>';
+      html += '<td>' + escapeHtml(m.ancienPoste||'-') + '</td><td>' + escapeHtml(m.nouveauPoste||'-') + '</td>';
+      html += '<td>' + escapeHtml(m.ancienDept||'-') + '</td><td>' + escapeHtml(m.nouveauDept||'-') + '</td>';
+      html += '<td>' + escapeHtml(m.dateEffet||'-') + '</td></tr>';
+    }
+    html += '</tbody></table></div>';
+    ct.innerHTML = html;
+  }).catch(function(err) { ct.innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>'; });
+}
+
+function showNewMovementModal() {
+  var html = '<h3 class="modal-title">Enregistrer un mouvement</h3>';
+  html += '<form id="form-mouvement" onsubmit="submitMouvement(event);return false;">';
+  html += '<div class="form-group"><label class="form-label">Email employe *</label><input type="email" name="emailEmp" class="form-input" required></div>';
+  html += '<div class="form-group"><label class="form-label">Type de mouvement *</label><select name="type" class="form-select" required>';
+  html += '<option value="">-- Selectionner --</option>';
+  var mvTypes = ['Embauche','Promotion','Mutation','Renouvellement','Titularisation','Depart'];
+  for (var i = 0; i < mvTypes.length; i++) html += '<option value="'+mvTypes[i]+'">'+mvTypes[i]+'</option>';
+  html += '</select></div>';
+  html += '<div class="form-row"><div class="form-group"><label class="form-label">Ancien poste</label><input type="text" name="ancienPoste" class="form-input"></div>';
+  html += '<div class="form-group"><label class="form-label">Nouveau poste</label><input type="text" name="nouveauPoste" class="form-input"></div></div>';
+  html += '<div class="form-row"><div class="form-group"><label class="form-label">Ancien departement</label><input type="text" name="ancienDept" class="form-input"></div>';
+  html += '<div class="form-group"><label class="form-label">Nouveau departement</label><input type="text" name="nouveauDept" class="form-input"></div></div>';
+  html += '<div class="form-row"><div class="form-group"><label class="form-label">Ancienne agence</label><input type="text" name="ancienneAgence" class="form-input"></div>';
+  html += '<div class="form-group"><label class="form-label">Nouvelle agence</label><input type="text" name="nouvelleAgence" class="form-input"></div></div>';
+  html += '<div class="form-group"><label class="form-label">Date d\'effet *</label><input type="date" name="dateEffet" class="form-input" required></div>';
+  html += '<div class="form-group"><label class="form-label">Motif</label><textarea name="motif" class="form-textarea"></textarea></div>';
+  html += '<div class="modal-actions"><button type="button" class="btn btn-outline" onclick="forceCloseModal()">Annuler</button>';
+  html += '<button type="submit" class="btn btn-primary" id="btn-mouvement">Enregistrer</button></div>';
+  html += '</form>';
+  showModal(html);
+}
+
+function submitMouvement(event) {
+  event.preventDefault();
+  var f = document.getElementById('form-mouvement');
+  var data = {
+    emailEmp: f.querySelector('[name="emailEmp"]').value,
+    type: f.querySelector('[name="type"]').value,
+    ancienPoste: f.querySelector('[name="ancienPoste"]').value,
+    nouveauPoste: f.querySelector('[name="nouveauPoste"]').value,
+    ancienDept: f.querySelector('[name="ancienDept"]').value,
+    nouveauDept: f.querySelector('[name="nouveauDept"]').value,
+    ancienneAgence: f.querySelector('[name="ancienneAgence"]').value,
+    nouvelleAgence: f.querySelector('[name="nouvelleAgence"]').value,
+    dateEffet: f.querySelector('[name="dateEffet"]').value,
+    motif: f.querySelector('[name="motif"]').value
+  };
+  if (!data.emailEmp || !data.type) { showToast('Email et type de mouvement requis','error'); return; }
+  var btn = document.getElementById('btn-mouvement');
+  btn.disabled = true; btn.textContent = 'Enregistrement...';
+  serverCall('server_recordMovement', data).then(function() {
+    forceCloseModal();
+    showToast('Mouvement enregistre avec succes','success');
+  }).catch(function(err) {
+    btn.disabled = false; btn.textContent = 'Enregistrer';
+    showToast('Erreur : ' + err.message, 'error');
+  });
+}
+
+function adminLoadAlertes() {
+  var ct = document.getElementById('admin-tab-content');
+  ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
+  serverCall('server_getAlerts').then(function(alerts) {
+    if (!alerts || alerts.length === 0) {
+      ct.innerHTML = '<div class="table-empty"><div style="font-size:3rem;margin-bottom:12px;">&#9989;</div><p>Aucune alerte en cours</p></div>';
+      return;
+    }
+    var html = '<div class="mb-8"><span class="text-muted">' + alerts.length + ' alerte(s) active(s)</span></div>';
+    html += '<div class="table-responsive"><table class="table"><thead><tr><th>Urgence</th><th>Type</th><th>Employe</th><th>Email</th><th>Echeance</th></tr></thead><tbody>';
+    for (var i = 0; i < alerts.length; i++) {
+      var a = alerts[i];
+      var urgBadge = a.urgence === 'haute' ? 'alert-badge-haute' : 'alert-badge-normale';
+      html += '<tr><td><span class="alert-badge ' + urgBadge + '">' + (a.urgence === 'haute' ? 'Urgente' : 'Normale') + '</span></td>';
+      html += '<td>' + escapeHtml(a.type) + '</td>';
+      html += '<td><strong>' + escapeHtml(a.employe) + '</strong></td>';
+      html += '<td>' + escapeHtml(a.email) + '</td>';
+      html += '<td>' + escapeHtml(a.date) + '</td></tr>';
+    }
+    html += '</tbody></table></div>';
+    ct.innerHTML = html;
+  }).catch(function(err) { ct.innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>'; });
+}
+
 function adminLoadConfig() {
   var ct = document.getElementById('admin-tab-content');
   ct.innerHTML = '<div class="alert alert-info">La configuration est geree directement dans la feuille "Config" du Google Sheets.</div>';
@@ -292,6 +650,8 @@ function adminLoadConfig() {
     +'<tr><td>PDF_TEMPLATE_DOC_ID</td><td>ID du Google Doc template PDF</td></tr>'
     +'<tr><td>ARCHIVE_FOLDER_ID</td><td>ID du dossier Drive archives</td></tr>'
     +'<tr><td>SOLDE_ANNUEL_DEFAUT</td><td>Allocation annuelle par defaut (30)</td></tr>'
+    +'<tr><td>CALENDAR_SYNC_ENABLED</td><td>Synchronisation Google Calendar (true/false)</td></tr>'
+    +'<tr><td>HEURE_REFERENCE</td><td>Heure de reference pour les notifications</td></tr>'
     +'</tbody></table>';
 }
 </script>
