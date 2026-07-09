@@ -172,6 +172,82 @@ function formatSheets() {
 }
 
 /**
+ * Migration vers le SIRH etendu
+ * A executer UNE FOIS si le systeme existait deja avec l'ancien schema (12 colonnes Employes)
+ * Cette fonction est SANS DANGER : elle ne supprime rien, elle ajoute les colonnes/config manquantes
+ */
+function migrateToSIRH() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1. Etendre les headers de la feuille Employes (12 -> 29 colonnes)
+  var empSheet = ss.getSheetByName(SHEET_NAMES.EMPLOYES);
+  if (empSheet) {
+    var currentHeaders = empSheet.getRange(1, 1, 1, empSheet.getLastColumn()).getValues()[0];
+    if (currentHeaders.length < HEADERS_EMPLOYES.length) {
+      var startCol = currentHeaders.length + 1;
+      var newHeaders = HEADERS_EMPLOYES.slice(currentHeaders.length);
+      empSheet.getRange(1, startCol, 1, newHeaders.length).setValues([newHeaders]);
+      Logger.log('Employes: ' + newHeaders.length + ' nouvelles colonnes ajoutees (total: ' + HEADERS_EMPLOYES.length + ')');
+    } else {
+      Logger.log('Employes: headers deja a jour (' + currentHeaders.length + ' colonnes)');
+    }
+
+    // Validations sur les nouvelles colonnes
+    var contractRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(CONTRACT_TYPES)
+      .setAllowInvalid(true)
+      .build();
+    empSheet.getRange(2, COL_EMPLOYES.TYPE_CONTRAT + 1, 500, 1).setDataValidation(contractRule);
+
+    var familyRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(SITUATIONS_FAMILIALES)
+      .setAllowInvalid(true)
+      .build();
+    empSheet.getRange(2, COL_EMPLOYES.SITUATION_FAMILIALE + 1, 500, 1).setDataValidation(familyRule);
+  }
+
+  // 2. Creer la feuille Mouvements si elle n'existe pas
+  createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.MOUVEMENTS, HEADERS_MOUVEMENTS);
+
+  // 3. Ajouter les cles de config manquantes
+  var newConfigKeys = ['CALENDAR_SYNC_ENABLED', 'HEURE_REFERENCE'];
+  for (var i = 0; i < newConfigKeys.length; i++) {
+    var existing = SheetDAO_getConfigValue(newConfigKeys[i]);
+    if (!existing) {
+      SheetDAO_setConfigValue(newConfigKeys[i], DEFAULT_CONFIG[newConfigKeys[i]]);
+      Logger.log('Config: ajout de ' + newConfigKeys[i] + ' = ' + DEFAULT_CONFIG[newConfigKeys[i]]);
+    }
+  }
+
+  // 4. Mettre a jour le Referentiel avec les nouveaux types de conge
+  var refSheet = ss.getSheetByName(SHEET_NAMES.REFERENTIEL);
+  if (refSheet) {
+    var refData = refSheet.getDataRange().getValues();
+    var existingTypes = [];
+    for (var r = 1; r < refData.length; r++) {
+      if (refData[r][2]) existingTypes.push(refData[r][2]);
+    }
+    var allTypes = Object.values(LEAVE_TYPES);
+    var newTypes = [];
+    for (var t = 0; t < allTypes.length; t++) {
+      if (existingTypes.indexOf(allTypes[t]) === -1) newTypes.push(allTypes[t]);
+    }
+    if (newTypes.length > 0) {
+      var lastRow = refSheet.getLastRow();
+      for (var n = 0; n < newTypes.length; n++) {
+        refSheet.getRange(lastRow + 1 + n, 3).setValue(newTypes[n]);
+      }
+      Logger.log('Referentiel: ' + newTypes.length + ' nouveaux types de conge ajoutes');
+    }
+  }
+
+  // 5. Reformater les headers
+  formatSheets();
+
+  Logger.log('Migration SIRH terminee avec succes.');
+}
+
+/**
  * Cree le dossier d'archives dans Drive
  */
 function createArchiveFolder() {
