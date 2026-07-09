@@ -203,14 +203,20 @@ function addSampleData() {
     return;
   }
 
+  // Colonnes: EMAIL, MATRICULE, NOM, PRENOM, POSTE, DEPARTEMENT, AGENCE, MANAGER_EMAIL, ROLE,
+  //   SOLDE_CONGES, SOLDE_INITIAL, ACTIF, DATE_NAISSANCE, LIEU_NAISSANCE, NATIONALITE, NUM_CNI,
+  //   SITUATION_FAMILIALE, NB_ENFANTS, TELEPHONE, TELEPHONE_PRO, ADRESSE,
+  //   CONTACT_URGENCE_NOM, CONTACT_URGENCE_TEL, CONTACT_URGENCE_LIEN,
+  //   TYPE_CONTRAT, DATE_EMBAUCHE, DATE_FIN_CONTRAT, DATE_FIN_ESSAI, PHOTO_URL
+  var pad = ['','','','','','',0,'','','','','','','CDI','','',''];
   var sampleEmployees = [
-    ['employe1@microfinance.com', 'M0001', 'Dupont', 'Jean', 'Analyste Credit', 'Direction Clientele', 'Agence 1', 'chef1@microfinance.com', 'EMPLOYE', 30, 30, true],
-    ['employe2@microfinance.com', 'M0002', 'Martin', 'Marie', 'Comptable', 'Direction Administrative et Financiere', '', 'chefdept1@microfinance.com', 'EMPLOYE', 30, 30, true],
-    ['chef1@microfinance.com', 'M0010', 'Bernard', 'Pierre', 'Chef Agence 1', 'Direction Clientele', 'Agence 1', 'dirclient@microfinance.com', 'CHEF_AGENCE', 30, 30, true],
-    ['chefdept1@microfinance.com', 'M0020', 'Petit', 'Sophie', 'Responsable DAF', 'Direction Administrative et Financiere', '', 'dg@microfinance.com', 'CHEF_DEPARTEMENT', 30, 30, true],
-    ['rh@microfinance.com', 'M0030', 'Moreau', 'Claire', 'Responsable RH', 'Ressources Humaines', '', 'dg@microfinance.com', 'RH', 30, 30, true],
-    ['dirclient@microfinance.com', 'M0040', 'Robert', 'Paul', 'Directeur Clientele', 'Direction Clientele', '', 'dg@microfinance.com', 'DIRECTEUR_CLIENTELE', 30, 30, true],
-    ['dg@microfinance.com', 'M0050', 'Leroy', 'Jacques', 'Directeur General', 'Direction Generale', '', '', 'DIRECTEUR_GENERAL', 30, 30, true]
+    ['employe1@microfinance.com', 'M0001', 'Dupont', 'Jean', 'Analyste Credit', 'Direction Clientele', 'Agence 1', 'chef1@microfinance.com', 'EMPLOYE', 30, 30, true].concat(pad),
+    ['employe2@microfinance.com', 'M0002', 'Martin', 'Marie', 'Comptable', 'Direction Administrative et Financiere', '', 'chefdept1@microfinance.com', 'EMPLOYE', 30, 30, true].concat(pad),
+    ['chef1@microfinance.com', 'M0010', 'Bernard', 'Pierre', 'Chef Agence 1', 'Direction Clientele', 'Agence 1', 'dirclient@microfinance.com', 'CHEF_AGENCE', 30, 30, true].concat(pad),
+    ['chefdept1@microfinance.com', 'M0020', 'Petit', 'Sophie', 'Responsable DAF', 'Direction Administrative et Financiere', '', 'dg@microfinance.com', 'CHEF_DEPARTEMENT', 30, 30, true].concat(pad),
+    ['rh@microfinance.com', 'M0030', 'Moreau', 'Claire', 'Responsable RH', 'Ressources Humaines', '', 'dg@microfinance.com', 'RH', 30, 30, true].concat(pad),
+    ['dirclient@microfinance.com', 'M0040', 'Robert', 'Paul', 'Directeur Clientele', 'Direction Clientele', '', 'dg@microfinance.com', 'DIRECTEUR_CLIENTELE', 30, 30, true].concat(pad),
+    ['dg@microfinance.com', 'M0050', 'Leroy', 'Jacques', 'Directeur General', 'Direction Generale', '', '', 'DIRECTEUR_GENERAL', 30, 30, true].concat(pad)
   ];
 
   sheet.getRange(2, 1, sampleEmployees.length, sampleEmployees[0].length).setValues(sampleEmployees);

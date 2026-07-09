@@ -75,7 +75,7 @@ function LeaveCounter_getTeamBalances(userProfile) {
       canSee = true;
     }
     // Chef d'agence voit son agence
-    else if (userProfile.role === ROLES.CHEF_AGENCE && emp.agence === userProfile.agence) {
+    else if ((userProfile.role === ROLES.CHEF_AGENCE || userProfile.role === ROLES.CHEF_AGENCE_SENIOR) && emp.agence === userProfile.agence) {
       canSee = true;
     }
     // Chef de departement voit son departement

@@ -42,15 +42,15 @@ function PdfService_generateAndArchive(requestData, validatorProfile) {
   body.replaceText('{{AGENCE}}', requestData.agence || 'Siege');
   body.replaceText('{{TYPE_CONGE}}', requestData.typeConge || '');
   body.replaceText('{{MOTIF}}', requestData.motif || 'N/A');
-  body.replaceText('{{DATE_DEBUT}}', formatDate(requestData.dateDebut));
-  body.replaceText('{{DATE_FIN}}', formatDate(requestData.dateFin));
+  body.replaceText('{{DATE_DEBUT}}', requestData.dateDebut || '');
+  body.replaceText('{{DATE_FIN}}', requestData.dateFin || '');
   body.replaceText('{{NB_JOURS}}', String(requestData.nbJours || 0));
   body.replaceText('{{MANAGER_NAME}}', requestData.managerName || '');
-  body.replaceText('{{DATE_SUBMIT}}', formatDate(requestData.dateSubmit));
-  body.replaceText('{{DATE_APPROBATION}}', formatDate(requestData.dateApprobation));
+  body.replaceText('{{DATE_SUBMIT}}', requestData.dateSubmit || '');
+  body.replaceText('{{DATE_APPROBATION}}', requestData.dateApprobation || '');
   body.replaceText('{{AVIS_RH}}', requestData.avisRh || '');
   body.replaceText('{{COMMENT_RH}}', requestData.commentRh || '');
-  body.replaceText('{{DATE_AVIS_RH}}', formatDate(requestData.dateAvisRh));
+  body.replaceText('{{DATE_AVIS_RH}}', requestData.dateAvisRh || '');
   body.replaceText('{{DATE_DECISION}}', formatDate(now));
   body.replaceText('{{VALIDATEUR_NOM}}', validatorProfile ? (validatorProfile.prenom + ' ' + validatorProfile.nom) : '');
   body.replaceText('{{COMMENT_VALIDATEUR}}', requestData.commentValidateur || '');
@@ -108,14 +108,14 @@ function PdfService_generateSimplePdf(requestData, validatorProfile, archiveRoot
     '<table>' +
     '<tr><td>Type de conge</td><td>' + (requestData.typeConge || '') + '</td></tr>' +
     '<tr><td>Motif</td><td>' + (requestData.motif || 'N/A') + '</td></tr>' +
-    '<tr><td>Date de debut</td><td>' + formatDate(requestData.dateDebut) + '</td></tr>' +
-    '<tr><td>Date de fin</td><td>' + formatDate(requestData.dateFin) + '</td></tr>' +
+    '<tr><td>Date de debut</td><td>' + (requestData.dateDebut || '') + '</td></tr>' +
+    '<tr><td>Date de fin</td><td>' + (requestData.dateFin || '') + '</td></tr>' +
     '<tr><td>Nombre de jours</td><td>' + (requestData.nbJours || 0) + '</td></tr>' +
     '</table>' +
     '<h2>Circuit de validation</h2>' +
     '<table>' +
-    '<tr><td>Soumis le</td><td>' + formatDate(requestData.dateSubmit) + '</td></tr>' +
-    '<tr><td>Approuve par (N1)</td><td>' + (requestData.managerName || '') + ' le ' + formatDate(requestData.dateApprobation) + '</td></tr>' +
+    '<tr><td>Soumis le</td><td>' + (requestData.dateSubmit || '') + '</td></tr>' +
+    '<tr><td>Approuve par (N1)</td><td>' + (requestData.managerName || '') + ' le ' + (requestData.dateApprobation || '') + '</td></tr>' +
     '<tr><td>Avis RH</td><td>' + (requestData.avisRh || '') + '</td></tr>' +
     '<tr><td>Commentaire RH</td><td>' + (requestData.commentRh || '') + '</td></tr>' +
     '<tr><td>Decision finale</td><td>VALIDE le ' + formatDate(now) + '</td></tr>' +
@@ -160,12 +160,12 @@ function PdfService_generateSimplePdf(requestData, validatorProfile, archiveRoot
     body.appendParagraph('');
     body.appendParagraph('Type de conge: ' + requestData.typeConge);
     if (requestData.motif) body.appendParagraph('Motif: ' + requestData.motif);
-    body.appendParagraph('Date de debut: ' + formatDate(requestData.dateDebut));
-    body.appendParagraph('Date de fin: ' + formatDate(requestData.dateFin));
+    body.appendParagraph('Date de debut: ' + (requestData.dateDebut || ''));
+    body.appendParagraph('Date de fin: ' + (requestData.dateFin || ''));
     body.appendParagraph('Nombre de jours: ' + requestData.nbJours);
     body.appendParagraph('');
-    body.appendParagraph('Soumis le: ' + formatDate(requestData.dateSubmit));
-    body.appendParagraph('Approuve par: ' + requestData.managerName + ' le ' + formatDate(requestData.dateApprobation));
+    body.appendParagraph('Soumis le: ' + (requestData.dateSubmit || ''));
+    body.appendParagraph('Approuve par: ' + requestData.managerName + ' le ' + (requestData.dateApprobation || ''));
     body.appendParagraph('Avis RH: ' + (requestData.avisRh || ''));
     body.appendParagraph('Decision finale: VALIDE le ' + formatDate(now));
     body.appendParagraph('Par: ' + (validatorProfile ? validatorProfile.prenom + ' ' + validatorProfile.nom : ''));

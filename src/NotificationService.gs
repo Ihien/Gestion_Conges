@@ -99,7 +99,7 @@ function NotificationService_onTransition(actionKey, requestData, actorProfile) 
         to: requestData.emailEmp,
         subject: institutionName + ' - Demande de conge VALIDEE',
         recipientName: requestData.prenom + ' ' + requestData.nom,
-        message: 'Votre demande de conge du ' + formatDate(requestData.dateDebut) + ' au ' + formatDate(requestData.dateFin) +
+        message: 'Votre demande de conge du ' + (requestData.dateDebut || '') + ' au ' + (requestData.dateFin || '') +
           ' (' + requestData.nbJours + ' jours) a ete validee par les Ressources Humaines.',
         requestData: requestData,
         webappUrl: webappUrl,
@@ -198,8 +198,8 @@ function buildEmailTemplate_(params) {
     '<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">' +
     '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;width:140px;">Employe</td><td style="padding:8px;font-weight:500;">' + (req.prenom || '') + ' ' + (req.nom || '') + '</td></tr>' +
     '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;">Type</td><td style="padding:8px;">' + (req.typeConge || '') + '</td></tr>' +
-    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;">Du</td><td style="padding:8px;">' + formatDate(req.dateDebut) + '</td></tr>' +
-    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;">Au</td><td style="padding:8px;">' + formatDate(req.dateFin) + '</td></tr>' +
+    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;">Du</td><td style="padding:8px;">' + (req.dateDebut || '') + '</td></tr>' +
+    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;">Au</td><td style="padding:8px;">' + (req.dateFin || '') + '</td></tr>' +
     '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;">Jours</td><td style="padding:8px;font-weight:600;">' + (req.nbJours || '') + '</td></tr>' +
     '<tr><td style="padding:8px;color:#6b7280;">Statut</td><td style="padding:8px;font-weight:600;">' + statutLabel + '</td></tr>' +
     '</table>' +
