@@ -9,11 +9,24 @@ var _spreadsheet = null;
 var _sheets = {};
 
 /**
- * Retourne le spreadsheet actif (avec cache)
+ * Retourne le spreadsheet (avec cache)
+ * Utilise openById si l'ID est stocke dans les Script Properties (necessaire pour Web App)
+ * Fallback sur getActiveSpreadsheet pour l'execution depuis l'editeur
  */
 function SheetDAO_getSpreadsheet() {
   if (!_spreadsheet) {
-    _spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    var ssId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+    if (ssId) {
+      _spreadsheet = SpreadsheetApp.openById(ssId);
+    } else {
+      _spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      if (_spreadsheet) {
+        PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', _spreadsheet.getId());
+      }
+    }
+  }
+  if (!_spreadsheet) {
+    throw new Error('Impossible d\'acceder au classeur. Executez la fonction saveSpreadsheetId() depuis l\'editeur Apps Script.');
   }
   return _spreadsheet;
 }

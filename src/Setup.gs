@@ -4,9 +4,25 @@
  */
 
 /**
+ * IMPORTANT : Executez cette fonction UNE FOIS depuis l'editeur Apps Script
+ * Elle enregistre l'ID du classeur pour que la Web App fonctionne pour tous les utilisateurs
+ */
+function saveSpreadsheetId() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    Logger.log('ERREUR: Executez cette fonction depuis l\'editeur du classeur (pas depuis un autre projet).');
+    return;
+  }
+  PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', ss.getId());
+  Logger.log('ID du classeur enregistre avec succes: ' + ss.getId());
+  Logger.log('La Web App fonctionnera maintenant pour tous les utilisateurs.');
+}
+
+/**
  * Configuration initiale complete du systeme
  */
 function initialSetup() {
+  saveSpreadsheetId();
   createAllSheets();
   addDataValidations();
   populateReferentiel();
