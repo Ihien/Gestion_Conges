@@ -202,7 +202,9 @@ var AGENCES = [
 // ===== NOMS FEUILLES SUPPLEMENTAIRES (SIRH) =====
 var SHEET_NAMES_SIRH = {
   MOUVEMENTS: 'Mouvements',
-  DOCUMENTS_RH: 'DocumentsRH'
+  DOCUMENTS_RH: 'DocumentsRH',
+  ONBOARDING: 'Onboarding',
+  CONTRATS: 'Contrats'
 };
 
 // ===== COLONNES FEUILLE MOUVEMENTS =====
@@ -231,6 +233,98 @@ var HEADERS_MOUVEMENTS = [
 ];
 
 var MOUVEMENT_TYPES = ['Embauche', 'Promotion', 'Mutation', 'Renouvellement', 'Titularisation', 'Depart'];
+
+// ===== COLONNES FEUILLE ONBOARDING =====
+var COL_ONBOARDING = {
+  ONBOARDING_ID: 0,
+  EMAIL_EMP: 1,
+  ETAPE_KEY: 2,
+  ETAPE_LABEL: 3,
+  STATUT: 4,
+  DATE_ECHEANCE: 5,
+  DATE_COMPLETION: 6,
+  RESPONSABLE_EMAIL: 7,
+  COMMENTAIRE: 8,
+  CREATED_AT: 9
+};
+
+var HEADERS_ONBOARDING = [
+  'ONBOARDING_ID', 'EMAIL_EMP', 'ETAPE_KEY', 'ETAPE_LABEL',
+  'STATUT', 'DATE_ECHEANCE', 'DATE_COMPLETION', 'RESPONSABLE_EMAIL',
+  'COMMENTAIRE', 'CREATED_AT'
+];
+
+var ONBOARDING_STATUS = {
+  A_FAIRE: 'A faire',
+  EN_COURS: 'En cours',
+  FAIT: 'Fait'
+};
+
+var DEFAULT_ONBOARDING_STEPS = [
+  { key: 'DOSSIER_ADMIN', label: 'Dossier administratif complet' },
+  { key: 'CONTRAT_SIGNE', label: 'Contrat signe' },
+  { key: 'VISITE_MEDICALE', label: 'Visite medicale' },
+  { key: 'COMPTE_EMAIL', label: 'Creation compte email' },
+  { key: 'MATERIEL_INFO', label: 'Attribution materiel informatique' },
+  { key: 'BADGE_ACCES', label: 'Remise badge d\'acces' },
+  { key: 'PRESENTATION_EQUIPE', label: 'Presentation a l\'equipe' },
+  { key: 'FORMATION_SECURITE', label: 'Formation securite' },
+  { key: 'FORMATION_OUTILS', label: 'Formation outils internes' },
+  { key: 'ACCES_SIRH', label: 'Ouverture acces SIRH' }
+];
+
+// ===== COLONNES FEUILLE CONTRATS =====
+var COL_CONTRATS = {
+  CONTRAT_ID: 0,
+  EMAIL_EMP: 1,
+  TYPE_CONTRAT: 2,
+  DATE_DEBUT: 3,
+  DATE_FIN: 4,
+  DUREE_MOIS: 5,
+  PERIODE_ESSAI_FIN: 6,
+  STATUT: 7,
+  MOTIF_FIN: 8,
+  DOCUMENT_URL: 9,
+  RENOUVELE_PAR: 10,
+  CREATED_BY: 11,
+  CREATED_AT: 12
+};
+
+var HEADERS_CONTRATS = [
+  'CONTRAT_ID', 'EMAIL_EMP', 'TYPE_CONTRAT', 'DATE_DEBUT', 'DATE_FIN',
+  'DUREE_MOIS', 'PERIODE_ESSAI_FIN', 'STATUT', 'MOTIF_FIN',
+  'DOCUMENT_URL', 'RENOUVELE_PAR', 'CREATED_BY', 'CREATED_AT'
+];
+
+var CONTRACT_STATUS = {
+  ACTIF: 'Actif',
+  EXPIRE: 'Expire',
+  RENOUVELE: 'Renouvele',
+  RESILIE: 'Resilie'
+};
+
+// ===== COLONNES FEUILLE DOCUMENTS RH =====
+var COL_DOCUMENTS_RH = {
+  DOCUMENT_ID: 0,
+  EMAIL_EMP: 1,
+  TYPE_DOCUMENT: 2,
+  DATE_GENERATION: 3,
+  GENERE_PAR: 4,
+  DOCUMENT_URL: 5,
+  NOTES: 6
+};
+
+var HEADERS_DOCUMENTS_RH = [
+  'DOCUMENT_ID', 'EMAIL_EMP', 'TYPE_DOCUMENT',
+  'DATE_GENERATION', 'GENERE_PAR', 'DOCUMENT_URL', 'NOTES'
+];
+
+var DOCUMENT_TYPES = [
+  'Attestation de travail',
+  'Certificat de travail',
+  'Attestation de stage',
+  'Attestation de presence'
+];
 
 // ===== CONFIG DEFAULTS =====
 var DEFAULT_CONFIG = {

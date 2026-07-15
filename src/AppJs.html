@@ -34,6 +34,7 @@ function navigateTo(pageName, params) {
     case 'Annuaire':         loadAnnuaire(); break;
     case 'MonProfil':        loadMonProfil(); break;
     case 'Administration':   loadAdministration(); break;
+    case 'OnboardingDetail': loadOnboardingDetail(params); break;
     default: c.innerHTML = '<div class="alert alert-danger">Page non trouvee : ' + pageName + '</div>';
   }
 

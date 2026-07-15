@@ -43,6 +43,9 @@ function createAllSheets() {
   createSheetIfNotExists_(ss, SHEET_NAMES.AUDIT, HEADERS_AUDIT);
   createSheetIfNotExists_(ss, SHEET_NAMES.CONFIG, HEADERS_CONFIG);
   createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.MOUVEMENTS, HEADERS_MOUVEMENTS);
+  createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.ONBOARDING, HEADERS_ONBOARDING);
+  createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.CONTRATS, HEADERS_CONTRATS);
+  createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.DOCUMENTS_RH, HEADERS_DOCUMENTS_RH);
 
   // Supprimer la feuille par defaut "Feuille 1" si elle existe et est vide
   var defaultSheet = ss.getSheetByName('Feuille 1') || ss.getSheetByName('Sheet1');
@@ -222,8 +225,11 @@ function migrateToSIRH() {
     empSheet.getRange(2, COL_EMPLOYES.SITUATION_FAMILIALE + 1, 500, 1).setDataValidation(familyRule);
   }
 
-  // 2. Creer la feuille Mouvements si elle n'existe pas
+  // 2. Creer les feuilles supplementaires si elles n'existent pas
   createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.MOUVEMENTS, HEADERS_MOUVEMENTS);
+  createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.ONBOARDING, HEADERS_ONBOARDING);
+  createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.CONTRATS, HEADERS_CONTRATS);
+  createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.DOCUMENTS_RH, HEADERS_DOCUMENTS_RH);
 
   // 3. Ajouter les cles de config manquantes
   var newConfigKeys = ['CALENDAR_SYNC_ENABLED', 'HEURE_REFERENCE'];

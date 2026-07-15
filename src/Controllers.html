@@ -459,7 +459,21 @@ function loadMonProfil() {
     html += '<div class="stat-card"><div class="stat-value">'+(p.soldeInitial||30)+'</div><div class="stat-label">Allocation annuelle</div></div>';
     html += '</div></div>';
 
+    html += '<div id="profil-documents"></div>';
     c.innerHTML = html;
+
+    serverCall('server_getEmployeeDocuments', p.email).then(function(docs) {
+      if (!docs || docs.length === 0) return;
+      var dh = '<div class="card"><div class="card-header"><h2 class="card-title">Mes documents</h2></div>';
+      dh += '<div class="table-responsive"><table class="table"><thead><tr><th>Date</th><th>Type</th><th>Action</th></tr></thead><tbody>';
+      for (var i = 0; i < docs.length; i++) {
+        dh += '<tr><td>' + escapeHtml(docs[i].dateGeneration) + '</td>';
+        dh += '<td>' + escapeHtml(docs[i].typeDocument) + '</td>';
+        dh += '<td>' + (docs[i].documentUrl ? '<a href="' + escapeHtml(docs[i].documentUrl) + '" target="_blank" class="btn btn-sm btn-outline">Telecharger</a>' : '-') + '</td></tr>';
+      }
+      dh += '</tbody></table></div></div>';
+      document.getElementById('profil-documents').innerHTML = dh;
+    }).catch(function(){});
   }).catch(function(err) {
     c.innerHTML = '<div class="alert alert-danger">Erreur : ' + escapeHtml(err.message) + '</div>';
   });
@@ -472,12 +486,15 @@ function loadAdministration() {
   var c = document.getElementById('app-content'), role = App.userProfile.role;
   if (role !== 'RH' && role !== 'DIRECTEUR_GENERAL') { c.innerHTML='<div class="alert alert-danger">Acces reserve aux administrateurs.</div>'; return; }
   var html = '<div class="card"><div class="card-header"><h2 class="card-title">Administration</h2></div>';
-  html += '<div class="tabs">';
+  html += '<div class="tabs" style="overflow-x:auto;">';
   html += '<div class="tab active" onclick="adminTab(\'employes\',this)">Employes</div>';
+  html += '<div class="tab" onclick="adminTab(\'onboarding\',this)">Onboarding</div>';
+  html += '<div class="tab" onclick="adminTab(\'contrats\',this)">Contrats</div>';
+  html += '<div class="tab" onclick="adminTab(\'documents\',this)">Documents</div>';
   html += '<div class="tab" onclick="adminTab(\'soldes\',this)">Soldes</div>';
   html += '<div class="tab" onclick="adminTab(\'mouvements\',this)">Mouvements</div>';
   html += '<div class="tab" onclick="adminTab(\'alertes\',this)">Alertes</div>';
-  html += '<div class="tab" onclick="adminTab(\'config\',this)">Configuration</div>';
+  html += '<div class="tab" onclick="adminTab(\'config\',this)">Config</div>';
   html += '</div>';
   html += '<div id="admin-tab-content"></div></div>';
   c.innerHTML = html;
@@ -488,11 +505,13 @@ function adminTab(tab, el) {
   var tabs = document.querySelectorAll('.tab');
   for (var i=0;i<tabs.length;i++) tabs[i].classList.remove('active');
   el.classList.add('active');
-  if (tab==='employes') adminLoadEmployees();
-  else if (tab==='soldes') adminLoadSoldes();
-  else if (tab==='mouvements') adminLoadMouvements();
-  else if (tab==='alertes') adminLoadAlertes();
-  else adminLoadConfig();
+  var loaders = {
+    employes: adminLoadEmployees, onboarding: adminLoadOnboarding,
+    contrats: adminLoadContrats, documents: adminLoadDocuments,
+    soldes: adminLoadSoldes, mouvements: adminLoadMouvements,
+    alertes: adminLoadAlertes, config: adminLoadConfig
+  };
+  (loaders[tab] || adminLoadEmployees)();
 }
 
 function adminLoadEmployees() {
@@ -653,5 +672,346 @@ function adminLoadConfig() {
     +'<tr><td>CALENDAR_SYNC_ENABLED</td><td>Synchronisation Google Calendar (true/false)</td></tr>'
     +'<tr><td>HEURE_REFERENCE</td><td>Heure de reference pour les notifications</td></tr>'
     +'</tbody></table>';
+}
+
+// =============================================================
+// ONBOARDING (onglet Administration)
+// =============================================================
+function adminLoadOnboarding() {
+  var ct = document.getElementById('admin-tab-content');
+  ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
+
+  var html = '<div class="mb-16 flex gap-8" style="flex-wrap:wrap;align-items:flex-end;">';
+  html += '<div class="form-group" style="margin:0;"><label class="form-label">Email du nouvel employe</label>';
+  html += '<input type="email" class="form-input" style="max-width:300px;" id="onboarding-email" placeholder="employe@email.com"></div>';
+  html += '<button class="btn btn-primary" onclick="initiateOnboarding()">Demarrer l\'onboarding</button></div>';
+
+  serverCall('server_getActiveOnboardings').then(function(list) {
+    if (!list || list.length === 0) {
+      ct.innerHTML = html + '<div class="table-empty"><div style="font-size:3rem;margin-bottom:12px;">&#128101;</div><p>Aucun onboarding en cours</p></div>';
+      return;
+    }
+    html += '<h3 class="mb-8" style="font-size:1rem;color:var(--color-gray-700);">Onboardings en cours (' + list.length + ')</h3>';
+    html += '<div class="onboarding-list">';
+    for (var i = 0; i < list.length; i++) {
+      var o = list[i];
+      var pct = o.progression || 0;
+      var pctColor = pct < 50 ? 'var(--color-danger)' : pct < 80 ? 'var(--color-warning)' : 'var(--color-success)';
+      html += '<div class="onboarding-card" onclick="navigateTo(\'OnboardingDetail\',{email:\'' + escapeHtml(o.email) + '\'})">';
+      html += '<div class="onboarding-card-header">';
+      html += '<div><strong>' + escapeHtml((o.prenom || '') + ' ' + (o.nom || '')) + '</strong>';
+      html += '<div class="text-sm text-muted">' + escapeHtml(o.poste || '') + ' - ' + escapeHtml(o.departement || '') + '</div></div>';
+      html += '<span class="badge-statut badge-soumis">' + pct + '%</span></div>';
+      html += '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%;background:' + pctColor + ';"></div></div>';
+      html += '<div class="text-sm text-muted mt-8">' + o.fait + '/' + o.total + ' etapes completees</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+    ct.innerHTML = html;
+  }).catch(function(err) { ct.innerHTML = html + '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>'; });
+}
+
+function initiateOnboarding() {
+  var email = document.getElementById('onboarding-email').value.trim();
+  if (!email) { showToast('Veuillez entrer un email', 'error'); return; }
+  serverCall('server_initiateOnboarding', email).then(function(res) {
+    showToast('Onboarding demarre avec ' + res.steps + ' etapes', 'success');
+    adminLoadOnboarding();
+  }).catch(function(err) { showToast('Erreur: ' + err.message, 'error'); });
+}
+
+// =============================================================
+// ONBOARDING DETAIL (page)
+// =============================================================
+function loadOnboardingDetail(params) {
+  var c = document.getElementById('app-content');
+  var email = params ? params.email : null;
+  if (!email) { c.innerHTML = '<div class="alert alert-danger">Email manquant.</div>'; return; }
+
+  c.innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner"></div></div>';
+
+  Promise.all([
+    serverCall('server_getOnboardingSteps', email),
+    serverCall('server_getFullProfile', email)
+  ]).then(function(results) {
+    var steps = results[0] || [];
+    var profile = results[1];
+    if (steps.length === 0) { c.innerHTML = '<div class="alert alert-info">Aucun onboarding en cours pour ' + escapeHtml(email) + '</div><button class="btn btn-outline mt-16" onclick="navigateTo(\'Administration\')">&larr; Retour</button>'; return; }
+
+    var done = steps.filter(function(s) { return s.statut === 'Fait'; }).length;
+    var pct = Math.round((done / steps.length) * 100);
+
+    var html = '<div class="mb-16"><button class="btn btn-outline btn-sm" onclick="navigateTo(\'Administration\')">&larr; Retour</button></div>';
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Onboarding - ' + escapeHtml(profile ? profile.prenom + ' ' + profile.nom : email) + '</h2>';
+    html += '<span class="badge-statut ' + (pct === 100 ? 'badge-valide' : 'badge-soumis') + '">' + pct + '% complete</span></div>';
+
+    if (profile) {
+      html += '<div class="detail-grid mb-16">';
+      html += buildDetailField('Poste', profile.poste) + buildDetailField('Departement', profile.departement);
+      html += buildDetailField('Type de contrat', profile.typeContrat) + buildDetailField('Date d\'embauche', profile.dateEmbauche);
+      html += '</div>';
+    }
+
+    html += '<div class="progress-bar mb-16"><div class="progress-fill" style="width:' + pct + '%;background:' + (pct < 50 ? 'var(--color-danger)' : pct < 80 ? 'var(--color-warning)' : 'var(--color-success)') + ';"></div></div>';
+
+    html += '<div class="checklist">';
+    for (var i = 0; i < steps.length; i++) {
+      var s = steps[i];
+      var icon = s.statut === 'Fait' ? '&#10003;' : s.statut === 'En cours' ? '&#9679;' : '&#9675;';
+      var stClass = s.statut === 'Fait' ? 'checklist-done' : s.statut === 'En cours' ? 'checklist-progress' : 'checklist-todo';
+      html += '<div class="checklist-item ' + stClass + '">';
+      html += '<span class="checklist-icon">' + icon + '</span>';
+      html += '<div class="checklist-content">';
+      html += '<div class="checklist-label">' + escapeHtml(s.etapeLabel) + '</div>';
+      if (s.dateCompletion) html += '<div class="text-sm text-muted">Termine le ' + escapeHtml(s.dateCompletion) + '</div>';
+      if (s.commentaire) html += '<div class="text-sm text-muted">' + escapeHtml(s.commentaire) + '</div>';
+      html += '</div>';
+      html += '<div class="checklist-actions">';
+      if (s.statut !== 'Fait') {
+        if (s.statut === 'A faire') html += '<button class="btn btn-sm btn-outline" onclick="updateOnboardingStep(\'' + escapeHtml(s.onboardingId) + '\',\'En cours\',\'' + escapeHtml(email) + '\')">Demarrer</button>';
+        html += '<button class="btn btn-sm btn-success" onclick="updateOnboardingStep(\'' + escapeHtml(s.onboardingId) + '\',\'Fait\',\'' + escapeHtml(email) + '\')">Valider</button>';
+      }
+      html += '</div></div>';
+    }
+    html += '</div></div>';
+    c.innerHTML = html;
+  }).catch(function(err) {
+    c.innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div><button class="btn btn-outline mt-16" onclick="navigateTo(\'Administration\')">&larr; Retour</button>';
+  });
+}
+
+function updateOnboardingStep(onboardingId, newStatut, email) {
+  serverCall('server_updateOnboardingStep', [onboardingId, newStatut, '']).then(function() {
+    showToast('Etape mise a jour', 'success');
+    loadOnboardingDetail({email: email});
+  }).catch(function(err) { showToast('Erreur: ' + err.message, 'error'); });
+}
+
+// =============================================================
+// CONTRATS (onglet Administration)
+// =============================================================
+function adminLoadContrats() {
+  var ct = document.getElementById('admin-tab-content');
+  ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
+
+  serverCall('server_getAllActiveContracts').then(function(contrats) {
+    var html = '<div class="mb-16 flex gap-8" style="flex-wrap:wrap;">';
+    html += '<button class="btn btn-primary" onclick="showNewContractModal()">+ Nouveau contrat</button>';
+    html += '<div class="form-group" style="margin:0;"><input type="text" class="form-input" style="max-width:300px;" placeholder="Rechercher..." oninput="filterContrats(this.value)" id="contrat-search"></div>';
+    html += '</div>';
+
+    if (!contrats || contrats.length === 0) {
+      html += '<div class="table-empty"><div style="font-size:3rem;margin-bottom:12px;">&#128196;</div><p>Aucun contrat actif</p></div>';
+    } else {
+      html += '<div class="table-responsive"><table class="table" id="contrats-table"><thead><tr>';
+      html += '<th>Employe</th><th>Dept</th><th>Type</th><th>Debut</th><th>Fin</th><th>Essai</th><th>Statut</th><th>Actions</th>';
+      html += '</tr></thead><tbody>';
+      for (var i = 0; i < contrats.length; i++) {
+        var c = contrats[i];
+        html += '<tr data-s="' + escapeHtml((c.nom + ' ' + c.prenom + ' ' + c.departement + ' ' + c.typeContrat).toLowerCase()) + '">';
+        html += '<td><strong>' + escapeHtml(c.prenom + ' ' + c.nom) + '</strong></td>';
+        html += '<td>' + escapeHtml(c.departement) + '</td>';
+        html += '<td><span class="badge-statut badge-soumis">' + escapeHtml(c.typeContrat) + '</span></td>';
+        html += '<td>' + escapeHtml(c.dateDebut) + '</td>';
+        html += '<td>' + escapeHtml(c.dateFin || 'Indetermine') + '</td>';
+        html += '<td>' + escapeHtml(c.periodeEssaiFin || '-') + '</td>';
+        html += '<td><span class="badge-statut badge-valide">' + escapeHtml(c.statut) + '</span></td>';
+        html += '<td><div class="flex gap-8">';
+        if (c.typeContrat !== 'CDI') html += '<button class="btn btn-sm btn-outline" onclick="showRenewModal(\'' + escapeHtml(c.contratId) + '\',\'' + escapeHtml(c.emailEmp) + '\')">Renouveler</button>';
+        html += '<button class="btn btn-sm btn-danger" onclick="showTerminateModal(\'' + escapeHtml(c.contratId) + '\')">Resilier</button>';
+        html += '</div></td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+
+    html += '<hr style="margin:24px 0;border:none;border-top:1px solid var(--color-gray-200);">';
+    html += '<h3 class="mb-8" style="font-size:1rem;color:var(--color-gray-700);">Historique par employe</h3>';
+    html += '<div class="flex gap-8" style="flex-wrap:wrap;align-items:flex-end;">';
+    html += '<div class="form-group" style="margin:0;"><input type="email" class="form-input" style="max-width:300px;" id="contrat-hist-email" placeholder="employe@email.com"></div>';
+    html += '<button class="btn btn-outline" onclick="loadContractHistory()">Voir l\'historique</button></div>';
+    html += '<div id="contrat-history"></div>';
+    ct.innerHTML = html;
+  }).catch(function(err) { ct.innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>'; });
+}
+
+function filterContrats(q) {
+  var rows = document.querySelectorAll('#contrats-table tbody tr'), ql = q.toLowerCase();
+  for (var i = 0; i < rows.length; i++) rows[i].style.display = (rows[i].getAttribute('data-s') || '').indexOf(ql) !== -1 ? '' : 'none';
+}
+
+function showNewContractModal() {
+  var html = '<h3 class="modal-title">Nouveau contrat</h3>';
+  html += '<form id="form-contrat" onsubmit="submitContract(event);return false;">';
+  html += '<div class="form-group"><label class="form-label">Email employe *</label><input type="email" name="emailEmp" class="form-input" required></div>';
+  html += '<div class="form-row"><div class="form-group"><label class="form-label">Type de contrat *</label><select name="typeContrat" class="form-select" required>';
+  html += '<option value="">-- Selectionner --</option><option value="CDI">CDI</option><option value="CDD">CDD</option><option value="Stage">Stage</option>';
+  html += '</select></div>';
+  html += '<div class="form-group"><label class="form-label">Duree (mois)</label><input type="number" name="dureeMois" class="form-input" min="1" placeholder="Ex: 12"></div></div>';
+  html += '<div class="form-row"><div class="form-group"><label class="form-label">Date de debut *</label><input type="date" name="dateDebut" class="form-input" required></div>';
+  html += '<div class="form-group"><label class="form-label">Date de fin</label><input type="date" name="dateFin" class="form-input"></div></div>';
+  html += '<div class="form-group"><label class="form-label">Fin periode d\'essai</label><input type="date" name="periodeEssaiFin" class="form-input"></div>';
+  html += '<div class="modal-actions"><button type="button" class="btn btn-outline" onclick="forceCloseModal()">Annuler</button>';
+  html += '<button type="submit" class="btn btn-primary" id="btn-contrat">Creer le contrat</button></div></form>';
+  showModal(html);
+}
+
+function submitContract(event) {
+  event.preventDefault();
+  var f = document.getElementById('form-contrat');
+  var data = {
+    emailEmp: f.querySelector('[name="emailEmp"]').value,
+    typeContrat: f.querySelector('[name="typeContrat"]').value,
+    dateDebut: f.querySelector('[name="dateDebut"]').value,
+    dateFin: f.querySelector('[name="dateFin"]').value,
+    dureeMois: f.querySelector('[name="dureeMois"]').value,
+    periodeEssaiFin: f.querySelector('[name="periodeEssaiFin"]').value
+  };
+  var btn = document.getElementById('btn-contrat');
+  btn.disabled = true; btn.textContent = 'Creation...';
+  serverCall('server_createContract', data).then(function() {
+    forceCloseModal(); showToast('Contrat cree avec succes', 'success'); adminLoadContrats();
+  }).catch(function(err) { btn.disabled = false; btn.textContent = 'Creer le contrat'; showToast('Erreur: ' + err.message, 'error'); });
+}
+
+function showRenewModal(contratId, emailEmp) {
+  var html = '<h3 class="modal-title">Renouveler le contrat</h3>';
+  html += '<p class="text-muted mb-16">Employe: ' + escapeHtml(emailEmp) + '</p>';
+  html += '<form id="form-renew" onsubmit="submitRenew(event,\'' + escapeHtml(contratId) + '\');return false;">';
+  html += '<div class="form-row"><div class="form-group"><label class="form-label">Nouveau type *</label><select name="typeContrat" class="form-select" required>';
+  html += '<option value="CDD">CDD</option><option value="CDI">CDI</option>';
+  html += '</select></div>';
+  html += '<div class="form-group"><label class="form-label">Duree (mois)</label><input type="number" name="dureeMois" class="form-input" min="1"></div></div>';
+  html += '<div class="form-row"><div class="form-group"><label class="form-label">Date de debut *</label><input type="date" name="dateDebut" class="form-input" required></div>';
+  html += '<div class="form-group"><label class="form-label">Date de fin</label><input type="date" name="dateFin" class="form-input"></div></div>';
+  html += '<div class="form-group"><label class="form-label">Fin periode d\'essai</label><input type="date" name="periodeEssaiFin" class="form-input"></div>';
+  html += '<div class="modal-actions"><button type="button" class="btn btn-outline" onclick="forceCloseModal()">Annuler</button>';
+  html += '<button type="submit" class="btn btn-primary" id="btn-renew">Renouveler</button></div></form>';
+  showModal(html);
+}
+
+function submitRenew(event, contratId) {
+  event.preventDefault();
+  var f = document.getElementById('form-renew');
+  var data = {
+    typeContrat: f.querySelector('[name="typeContrat"]').value,
+    dateDebut: f.querySelector('[name="dateDebut"]').value,
+    dateFin: f.querySelector('[name="dateFin"]').value,
+    dureeMois: f.querySelector('[name="dureeMois"]').value,
+    periodeEssaiFin: f.querySelector('[name="periodeEssaiFin"]').value
+  };
+  var btn = document.getElementById('btn-renew');
+  btn.disabled = true; btn.textContent = 'Renouvellement...';
+  serverCall('server_renewContract', [contratId, data]).then(function() {
+    forceCloseModal(); showToast('Contrat renouvele avec succes', 'success'); adminLoadContrats();
+  }).catch(function(err) { btn.disabled = false; btn.textContent = 'Renouveler'; showToast('Erreur: ' + err.message, 'error'); });
+}
+
+function showTerminateModal(contratId) {
+  var html = '<h3 class="modal-title">Resilier le contrat</h3>';
+  html += '<form id="form-terminate" onsubmit="submitTerminate(event,\'' + escapeHtml(contratId) + '\');return false;">';
+  html += '<div class="form-group"><label class="form-label">Motif de resiliation *</label><textarea name="motif" class="form-textarea" required placeholder="Indiquez le motif..."></textarea></div>';
+  html += '<div class="modal-actions"><button type="button" class="btn btn-outline" onclick="forceCloseModal()">Annuler</button>';
+  html += '<button type="submit" class="btn btn-danger" id="btn-terminate">Resilier</button></div></form>';
+  showModal(html);
+}
+
+function submitTerminate(event, contratId) {
+  event.preventDefault();
+  var motif = document.querySelector('#form-terminate [name="motif"]').value;
+  var btn = document.getElementById('btn-terminate');
+  btn.disabled = true; btn.textContent = 'Resiliation...';
+  serverCall('server_terminateContract', [contratId, motif]).then(function() {
+    forceCloseModal(); showToast('Contrat resilie', 'success'); adminLoadContrats();
+  }).catch(function(err) { btn.disabled = false; btn.textContent = 'Resilier'; showToast('Erreur: ' + err.message, 'error'); });
+}
+
+function loadContractHistory() {
+  var email = document.getElementById('contrat-hist-email').value.trim();
+  if (!email) { showToast('Veuillez entrer un email', 'error'); return; }
+  var ct = document.getElementById('contrat-history');
+  ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
+  serverCall('server_getEmployeeContracts', email).then(function(contrats) {
+    if (!contrats || contrats.length === 0) { ct.innerHTML = '<div class="alert alert-info mt-16">Aucun contrat enregistre.</div>'; return; }
+    var html = '<div class="table-responsive mt-16"><table class="table"><thead><tr><th>Type</th><th>Debut</th><th>Fin</th><th>Essai</th><th>Statut</th><th>Motif fin</th></tr></thead><tbody>';
+    for (var i = 0; i < contrats.length; i++) {
+      var c = contrats[i];
+      var stClass = c.statut === 'Actif' ? 'badge-valide' : c.statut === 'Renouvele' ? 'badge-soumis' : 'badge-rejete-final';
+      html += '<tr><td>' + escapeHtml(c.typeContrat) + '</td>';
+      html += '<td>' + escapeHtml(c.dateDebut) + '</td>';
+      html += '<td>' + escapeHtml(c.dateFin || 'Indetermine') + '</td>';
+      html += '<td>' + escapeHtml(c.periodeEssaiFin || '-') + '</td>';
+      html += '<td><span class="badge-statut ' + stClass + '">' + escapeHtml(c.statut) + '</span></td>';
+      html += '<td>' + escapeHtml(c.motifFin || '-') + '</td></tr>';
+    }
+    html += '</tbody></table></div>';
+    ct.innerHTML = html;
+  }).catch(function(err) { ct.innerHTML = '<div class="alert alert-danger mt-16">' + escapeHtml(err.message) + '</div>'; });
+}
+
+// =============================================================
+// DOCUMENTS / ATTESTATIONS (onglet Administration)
+// =============================================================
+function adminLoadDocuments() {
+  var ct = document.getElementById('admin-tab-content');
+  ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
+
+  serverCall('server_getAllDocuments').then(function(docs) {
+    var html = '<div class="mb-16"><button class="btn btn-primary" onclick="showGenerateDocModal()">+ Generer un document</button></div>';
+
+    if (!docs || docs.length === 0) {
+      html += '<div class="table-empty"><div style="font-size:3rem;margin-bottom:12px;">&#128220;</div><p>Aucun document genere</p></div>';
+    } else {
+      html += '<div class="table-responsive"><table class="table"><thead><tr>';
+      html += '<th>Date</th><th>Employe</th><th>Type</th><th>Genere par</th><th>Notes</th><th>Action</th>';
+      html += '</tr></thead><tbody>';
+      for (var i = 0; i < docs.length; i++) {
+        var d = docs[i];
+        html += '<tr>';
+        html += '<td>' + escapeHtml(d.dateGeneration) + '</td>';
+        html += '<td><strong>' + escapeHtml((d.prenom || '') + ' ' + (d.nom || '')) + '</strong></td>';
+        html += '<td><span class="badge-statut badge-approuve-n1">' + escapeHtml(d.typeDocument) + '</span></td>';
+        html += '<td>' + escapeHtml(d.generePar) + '</td>';
+        html += '<td>' + escapeHtml(d.notes || '-') + '</td>';
+        html += '<td>';
+        if (d.documentUrl) html += '<a href="' + escapeHtml(d.documentUrl) + '" target="_blank" class="btn btn-sm btn-outline">Telecharger</a>';
+        html += '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+    ct.innerHTML = html;
+  }).catch(function(err) { ct.innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>'; });
+}
+
+function showGenerateDocModal() {
+  var html = '<h3 class="modal-title">Generer un document RH</h3>';
+  html += '<form id="form-gendoc" onsubmit="submitGenerateDoc(event);return false;">';
+  html += '<div class="form-group"><label class="form-label">Email employe *</label><input type="email" name="emailEmp" class="form-input" required></div>';
+  html += '<div class="form-group"><label class="form-label">Type de document *</label><select name="typeDocument" class="form-select" required>';
+  html += '<option value="">-- Selectionner --</option>';
+  var docTypes = ['Attestation de travail', 'Certificat de travail', 'Attestation de stage', 'Attestation de presence'];
+  for (var i = 0; i < docTypes.length; i++) html += '<option value="' + docTypes[i] + '">' + docTypes[i] + '</option>';
+  html += '</select></div>';
+  html += '<div class="form-group"><label class="form-label">Notes (optionnel)</label><textarea name="notes" class="form-textarea" placeholder="Informations complementaires..."></textarea></div>';
+  html += '<div class="modal-actions"><button type="button" class="btn btn-outline" onclick="forceCloseModal()">Annuler</button>';
+  html += '<button type="submit" class="btn btn-primary" id="btn-gendoc">Generer le document</button></div></form>';
+  showModal(html);
+}
+
+function submitGenerateDoc(event) {
+  event.preventDefault();
+  var f = document.getElementById('form-gendoc');
+  var emailEmp = f.querySelector('[name="emailEmp"]').value;
+  var typeDocument = f.querySelector('[name="typeDocument"]').value;
+  var notes = f.querySelector('[name="notes"]').value;
+  if (!emailEmp || !typeDocument) { showToast('Email et type requis', 'error'); return; }
+
+  var btn = document.getElementById('btn-gendoc');
+  btn.disabled = true; btn.textContent = 'Generation en cours...';
+  serverCall('server_generateDocument', [emailEmp, typeDocument, notes]).then(function(res) {
+    forceCloseModal();
+    showToast('Document genere avec succes', 'success');
+    if (res && res.url) window.open(res.url, '_blank');
+    adminLoadDocuments();
+  }).catch(function(err) { btn.disabled = false; btn.textContent = 'Generer le document'; showToast('Erreur: ' + err.message, 'error'); });
 }
 </script>

@@ -122,7 +122,10 @@ function server_getDropdownData() {
     typesConge: Object.values(LEAVE_TYPES),
     typesContrat: CONTRACT_TYPES,
     situationsFamiliales: SITUATIONS_FAMILIALES,
-    mouvementTypes: MOUVEMENT_TYPES
+    mouvementTypes: MOUVEMENT_TYPES,
+    documentTypes: DOCUMENT_TYPES,
+    onboardingStatuts: Object.values(ONBOARDING_STATUS),
+    contractStatuts: Object.values(CONTRACT_STATUS)
   };
 }
 
@@ -247,9 +250,95 @@ function server_getEmployeeMovements(email) {
 }
 
 /**
- * Retourne les alertes RH (echeances)
+ * Retourne les alertes RH (echeances employes + contrats)
  */
 function server_getAlerts() {
   assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
-  return PersonnelService_getAlerts();
+  var empAlerts = PersonnelService_getAlerts();
+  var contractAlerts = ContractService_getAlerts();
+  var all = empAlerts.concat(contractAlerts);
+  all.sort(function(a, b) { return parseDate(a.date) - parseDate(b.date); });
+  return all;
+}
+
+// ===================================================================
+// ONBOARDING
+// ===================================================================
+
+function server_initiateOnboarding(emailEmp) {
+  var profile = assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return OnboardingService_initiate(emailEmp, profile.email);
+}
+
+function server_getOnboardingSteps(emailEmp) {
+  assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return OnboardingService_getSteps(emailEmp);
+}
+
+function server_updateOnboardingStep(onboardingId, newStatut, comment) {
+  var profile = assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return OnboardingService_updateStep(onboardingId, newStatut, comment, profile.email);
+}
+
+function server_getActiveOnboardings() {
+  assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return OnboardingService_getActiveOnboardings();
+}
+
+// ===================================================================
+// CONTRATS
+// ===================================================================
+
+function server_createContract(data) {
+  var profile = assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return ContractService_create(data, profile.email);
+}
+
+function server_renewContract(contratId, newData) {
+  var profile = assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return ContractService_renew(contratId, newData, profile.email);
+}
+
+function server_terminateContract(contratId, motif) {
+  var profile = assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return ContractService_terminate(contratId, motif, profile.email);
+}
+
+function server_getEmployeeContracts(emailEmp) {
+  var profile = assertAuthenticated();
+  if (emailEmp !== profile.email) {
+    if ([ROLES.RH, ROLES.DIRECTEUR_GENERAL].indexOf(profile.role) === -1) {
+      throw new Error('Acces refuse.');
+    }
+  }
+  return ContractService_getByEmployee(emailEmp);
+}
+
+function server_getAllActiveContracts() {
+  assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return ContractService_getAllActive();
+}
+
+// ===================================================================
+// DOCUMENTS / ATTESTATIONS
+// ===================================================================
+
+function server_generateDocument(emailEmp, typeDocument, notes) {
+  var profile = assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return DocumentService_generate(emailEmp, typeDocument, notes, profile.email);
+}
+
+function server_getEmployeeDocuments(emailEmp) {
+  var profile = assertAuthenticated();
+  if (emailEmp !== profile.email) {
+    if ([ROLES.RH, ROLES.DIRECTEUR_GENERAL].indexOf(profile.role) === -1) {
+      throw new Error('Acces refuse.');
+    }
+  }
+  return DocumentService_getByEmployee(emailEmp);
+}
+
+function server_getAllDocuments() {
+  assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return DocumentService_getAll();
 }
