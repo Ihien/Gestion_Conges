@@ -121,10 +121,13 @@ function buildAttestationTravail_(p, inst, now) {
     title: 'ATTESTATION DE TRAVAIL',
     body: 'Je soussigne(e), agissant en qualite de Directeur General de ' + inst + ', ' +
       'atteste par la presente que :\n\n' +
-      'M./Mme ' + p.prenom + ' ' + p.nom + '\n' +
-      'Matricule : ' + p.matricule + '\n' +
+      (p.genre === 'Masculin' ? 'M. ' : p.genre === 'Feminin' ? 'Mme ' : 'M./Mme ') + p.prenom + ' ' + p.nom + '\n' +
+      'Matricule : ' + (p.matriculeBbf || p.matricule) + '\n' +
       (p.dateNaissance ? 'Ne(e) le : ' + p.dateNaissance + (p.lieuNaissance ? ' a ' + p.lieuNaissance : '') + '\n' : '') +
+      (p.nationalite ? 'Nationalite : ' + p.nationalite + '\n' : '') +
       (p.numCni ? 'CNI N° : ' + p.numCni + '\n' : '') +
+      (p.numCnss ? 'CNSS N° : ' + p.numCnss + '\n' : '') +
+      (p.profession ? 'Profession : ' + p.profession + '\n' : '') +
       '\n' +
       'Est employe(e) au sein de notre institution depuis le ' + (p.dateEmbauche || '___________') +
       (anciennete ? ' (soit ' + anciennete + ')' : '') + ', ' +
@@ -138,35 +141,42 @@ function buildAttestationTravail_(p, inst, now) {
 }
 
 function buildCertificatTravail_(p, inst, now) {
+  var civilite = p.genre === 'Masculin' ? 'M. ' : p.genre === 'Feminin' ? 'Mme ' : 'M./Mme ';
   return {
     title: 'CERTIFICAT DE TRAVAIL',
     body: 'Je soussigne(e), agissant en qualite de Directeur General de ' + inst + ', ' +
       'certifie par la presente que :\n\n' +
-      'M./Mme ' + p.prenom + ' ' + p.nom + '\n' +
-      'Matricule : ' + p.matricule + '\n' +
+      civilite + p.prenom + ' ' + p.nom + '\n' +
+      'Matricule : ' + (p.matriculeBbf || p.matricule) + '\n' +
       (p.dateNaissance ? 'Ne(e) le : ' + p.dateNaissance + (p.lieuNaissance ? ' a ' + p.lieuNaissance : '') + '\n' : '') +
+      (p.nationalite ? 'Nationalite : ' + p.nationalite + '\n' : '') +
+      (p.numCnss ? 'CNSS N° : ' + p.numCnss + '\n' : '') +
       '\n' +
       'A ete employe(e) au sein de ' + inst + ' du ' + (p.dateEmbauche || '___________') +
       ' au ' + formatDate(now) + ', ' +
       'en qualite de ' + (p.poste || '___________') + '.\n\n' +
-      'Durant cette periode, M./Mme ' + p.nom + ' a fait preuve de serieux et de ' +
+      'Durant cette periode, ' + civilite + p.nom + ' a fait preuve de serieux et de ' +
       'professionnalisme dans l\'exercice de ses fonctions.\n\n' +
-      'M./Mme ' + p.nom + ' nous quitte ce jour, libre de tout engagement.\n\n' +
+      civilite + p.nom + ' nous quitte ce jour, libre de tout engagement.\n\n' +
       'En foi de quoi, le present certificat est etabli pour servir et valoir ce que de droit.'
   };
 }
 
 function buildAttestationStage_(p, inst, now) {
+  var civilite = p.genre === 'Masculin' ? 'M. ' : p.genre === 'Feminin' ? 'Mme ' : 'M./Mme ';
   return {
     title: 'ATTESTATION DE STAGE',
     body: 'Je soussigne(e), agissant en qualite de Directeur General de ' + inst + ', ' +
       'atteste par la presente que :\n\n' +
-      'M./Mme ' + p.prenom + ' ' + p.nom + '\n' +
+      civilite + p.prenom + ' ' + p.nom + '\n' +
       (p.dateNaissance ? 'Ne(e) le : ' + p.dateNaissance + (p.lieuNaissance ? ' a ' + p.lieuNaissance : '') + '\n' : '') +
+      (p.nationalite ? 'Nationalite : ' + p.nationalite + '\n' : '') +
+      (p.niveauEntree ? 'Niveau d\'etude : ' + p.niveauEntree + '\n' : '') +
       '\n' +
       'A effectue un stage au sein de ' + inst + '\n' +
       'Du ' + (p.dateEmbauche || '___________') + ' au ' + (p.dateFinContrat || formatDate(now)) + '\n' +
       'Au sein du departement : ' + (p.departement || '___________') + '\n' +
+      (p.etablissementEntree ? 'Etablissement d\'origine : ' + p.etablissementEntree + '\n' : '') +
       'En qualite de : ' + (p.poste || 'Stagiaire') + '\n\n' +
       'Durant cette periode, l\'interesse(e) a fait preuve de motivation et d\'engagement ' +
       'dans les missions qui lui ont ete confiees.\n\n' +
@@ -179,10 +189,12 @@ function buildAttestationPresence_(p, inst, now) {
     title: 'ATTESTATION DE PRESENCE',
     body: 'Je soussigne(e), agissant en qualite de Directeur General de ' + inst + ', ' +
       'atteste par la presente que :\n\n' +
-      'M./Mme ' + p.prenom + ' ' + p.nom + '\n' +
-      'Matricule : ' + p.matricule + '\n' +
+      (p.genre === 'Masculin' ? 'M. ' : p.genre === 'Feminin' ? 'Mme ' : 'M./Mme ') + p.prenom + ' ' + p.nom + '\n' +
+      'Matricule : ' + (p.matriculeBbf || p.matricule) + '\n' +
       'Poste : ' + (p.poste || '___________') + '\n' +
-      'Departement : ' + (p.departement || '___________') + '\n\n' +
+      'Departement : ' + (p.departement || '___________') + '\n' +
+      (p.agence ? 'Agence : ' + p.agence + '\n' : '') +
+      '\n' +
       'Est present(e) a son poste de travail a la date du ' + formatDate(now) + '.\n\n' +
       'La presente attestation est delivree a l\'interesse(e) pour servir et valoir ce que de droit.'
   };

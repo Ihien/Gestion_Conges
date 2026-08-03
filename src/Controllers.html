@@ -427,17 +427,20 @@ function loadMonProfil() {
     html += '</div></div>';
 
     html += '<div class="card"><div class="card-header"><h2 class="card-title">Etat civil</h2></div><div class="detail-grid">';
+    html += buildDetailField('Genre', p.genre);
     html += buildDetailField('Date de naissance', p.dateNaissance);
     html += buildDetailField('Lieu de naissance', p.lieuNaissance);
     html += buildDetailField('Nationalite', p.nationalite);
     html += buildDetailField('N° CNI', p.numCni);
     html += buildDetailField('Situation familiale', p.situationFamiliale);
     html += buildDetailField('Nombre d\'enfants', p.nbEnfants);
+    html += buildDetailField('Profession', p.profession);
     html += '</div></div>';
 
     html += '<div class="card"><div class="card-header"><h2 class="card-title">Coordonnees</h2></div><div class="detail-grid">';
     html += buildDetailField('Telephone personnel', p.telephone);
     html += buildDetailField('Telephone professionnel', p.telephonePro);
+    html += buildDetailField('Email personnel', p.emailPerso);
     html += buildDetailField('Adresse', p.adresse);
     html += '</div></div>';
 
@@ -452,6 +455,33 @@ function loadMonProfil() {
     html += buildDetailField('Date d\'embauche', p.dateEmbauche);
     html += buildDetailField('Date fin de contrat', p.dateFinContrat);
     html += buildDetailField('Date fin periode d\'essai', p.dateFinEssai);
+    html += '</div></div>';
+
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Identifiants administratifs</h2></div><div class="detail-grid">';
+    html += buildDetailField('Matricule BBF', p.matriculeBbf);
+    html += buildDetailField('Matricule PDR', p.matriculePdr);
+    html += buildDetailField('N° CNSS', p.numCnss);
+    html += buildDetailField('N° Carte professionnelle', p.numCartePro);
+    html += buildDetailField('N° Compte staff', p.numCompteStaff);
+    html += buildDetailField('Zone', p.zone);
+    html += '</div></div>';
+
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Situation a l\'entree</h2></div><div class="detail-grid">';
+    html += buildDetailField('Niveau a l\'entree', p.niveauEntree);
+    html += buildDetailField('Nature du contrat', p.natureContratEntree);
+    html += buildDetailField('Type de contrat', p.typeContratEntree);
+    html += buildDetailField('Poste d\'entree', p.posteEntree);
+    html += buildDetailField('Etablissement', p.etablissementEntree);
+    html += buildDetailField('Section', p.sectionEntree);
+    html += buildDetailField('Departement', p.departementEntree);
+    html += buildDetailField('Superieur hierarchique', p.supHierarchiqueEntree);
+    html += buildDetailField('Statut du poste', p.statutPosteEntree);
+    html += buildDetailField('Situation familiale', p.situationFamilialeEntree);
+    html += '</div></div>';
+
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Parcours anterieur</h2></div><div class="detail-grid">';
+    html += buildDetailField('Precedent poste', p.precedentPoste);
+    html += buildDetailField('Precedent employeur', p.precedentEmployeur);
     html += '</div></div>';
 
     html += '<div class="card"><div class="card-header"><h2 class="card-title">Solde de Conges</h2></div><div class="stats-grid">';
@@ -519,15 +549,18 @@ function adminLoadEmployees() {
   ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
   serverCall('server_getEmployeeList').then(function(emps) {
     var html = '<div class="mb-16"><input type="text" class="form-input" style="max-width:300px;" placeholder="Rechercher..." oninput="adminFilterEmp(this.value)"></div>';
-    html += '<div class="table-responsive"><table class="table" id="admin-emp-table"><thead><tr><th>Matricule</th><th>Nom</th><th>Prenom</th><th>Departement</th><th>Agence</th><th>Role</th><th>Contrat</th><th>Solde</th><th>Actif</th></tr></thead><tbody>';
+    html += '<div class="table-responsive"><table class="table" id="admin-emp-table"><thead><tr><th>Matricule</th><th>Mat. BBF</th><th>Nom</th><th>Prenom</th><th>Genre</th><th>Departement</th><th>Agence</th><th>Role</th><th>Contrat</th><th>Solde</th><th>Suivi</th><th>Actif</th></tr></thead><tbody>';
     for (var i=0;i<emps.length;i++) {
       var e = emps[i];
-      html += '<tr data-s="'+escapeHtml((e.matricule+' '+e.nom+' '+e.prenom+' '+e.departement).toLowerCase())+'">';
-      html += '<td>'+escapeHtml(e.matricule)+'</td><td>'+escapeHtml(e.nom)+'</td><td>'+escapeHtml(e.prenom)+'</td>';
+      html += '<tr data-s="'+escapeHtml((e.matricule+' '+(e.matriculeBbf||'')+' '+e.nom+' '+e.prenom+' '+e.departement).toLowerCase())+'">';
+      html += '<td>'+escapeHtml(e.matricule)+'</td><td>'+escapeHtml(e.matriculeBbf||'-')+'</td><td>'+escapeHtml(e.nom)+'</td><td>'+escapeHtml(e.prenom)+'</td>';
+      html += '<td>'+escapeHtml(e.genre||'-')+'</td>';
       html += '<td>'+escapeHtml(e.departement)+'</td><td>'+escapeHtml(e.agence||'Siege')+'</td>';
       html += '<td><span class="badge-statut badge-soumis">'+escapeHtml(e.role)+'</span></td>';
       html += '<td>'+escapeHtml(e.typeContrat||'-')+'</td>';
-      html += '<td>'+(e.soldeConges||0)+'</td><td>'+(e.actif===true||e.actif==='TRUE'?'Oui':'Non')+'</td></tr>';
+      html += '<td>'+(e.soldeConges||0)+'</td>';
+      html += '<td>'+(e.suiviAJour?'<span style="color:var(--color-success);">Oui</span>':'<span style="color:var(--color-danger);">Non</span>')+'</td>';
+      html += '<td>'+(e.actif===true||e.actif==='TRUE'?'Oui':'Non')+'</td></tr>';
     }
     html += '</tbody></table></div>';
     ct.innerHTML = html;

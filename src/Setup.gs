@@ -117,6 +117,38 @@ function addDataValidations() {
       .build();
     var actifCol = COL_EMPLOYES.ACTIF + 1;
     employesSheet.getRange(2, actifCol, 500, 1).setDataValidation(boolRule);
+
+    // Validations conformite BF
+    var genreRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(GENRES)
+      .setAllowInvalid(true)
+      .build();
+    employesSheet.getRange(2, COL_EMPLOYES.GENRE + 1, 500, 1).setDataValidation(genreRule);
+
+    var niveauRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(NIVEAUX_ETUDE)
+      .setAllowInvalid(true)
+      .build();
+    employesSheet.getRange(2, COL_EMPLOYES.NIVEAU_ENTREE + 1, 500, 1).setDataValidation(niveauRule);
+
+    var natureContratRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(NATURES_CONTRAT)
+      .setAllowInvalid(true)
+      .build();
+    employesSheet.getRange(2, COL_EMPLOYES.NATURE_CONTRAT_ENTREE + 1, 500, 1).setDataValidation(natureContratRule);
+
+    var statutPosteRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(STATUTS_POSTE)
+      .setAllowInvalid(true)
+      .build();
+    employesSheet.getRange(2, COL_EMPLOYES.STATUT_POSTE_ENTREE + 1, 500, 1).setDataValidation(statutPosteRule);
+
+    var sitFamRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(SITUATIONS_FAMILIALES)
+      .setAllowInvalid(true)
+      .build();
+    employesSheet.getRange(2, COL_EMPLOYES.SITUATION_FAMILIALE + 1, 500, 1).setDataValidation(sitFamRule);
+    employesSheet.getRange(2, COL_EMPLOYES.SITUATION_FAMILIALE_ENTREE + 1, 500, 1).setDataValidation(sitFamRule);
   }
 }
 
@@ -198,7 +230,7 @@ function formatSheets() {
 function migrateToSIRH() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // 1. Etendre les headers de la feuille Employes (12 -> 29 colonnes)
+  // 1. Etendre les headers de la feuille Employes (jusqu'a 51 colonnes)
   var empSheet = ss.getSheetByName(SHEET_NAMES.EMPLOYES);
   if (empSheet) {
     var currentHeaders = empSheet.getRange(1, 1, 1, empSheet.getLastColumn()).getValues()[0];
@@ -211,7 +243,7 @@ function migrateToSIRH() {
       Logger.log('Employes: headers deja a jour (' + currentHeaders.length + ' colonnes)');
     }
 
-    // Validations sur les nouvelles colonnes
+    // Validations sur les colonnes SIRH Phase 1
     var contractRule = SpreadsheetApp.newDataValidation()
       .requireValueInList(CONTRACT_TYPES)
       .setAllowInvalid(true)
@@ -223,6 +255,37 @@ function migrateToSIRH() {
       .setAllowInvalid(true)
       .build();
     empSheet.getRange(2, COL_EMPLOYES.SITUATION_FAMILIALE + 1, 500, 1).setDataValidation(familyRule);
+
+    // Validations conformite BF
+    var genreRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(GENRES)
+      .setAllowInvalid(true)
+      .build();
+    empSheet.getRange(2, COL_EMPLOYES.GENRE + 1, 500, 1).setDataValidation(genreRule);
+
+    var niveauRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(NIVEAUX_ETUDE)
+      .setAllowInvalid(true)
+      .build();
+    empSheet.getRange(2, COL_EMPLOYES.NIVEAU_ENTREE + 1, 500, 1).setDataValidation(niveauRule);
+
+    var natureContratRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(NATURES_CONTRAT)
+      .setAllowInvalid(true)
+      .build();
+    empSheet.getRange(2, COL_EMPLOYES.NATURE_CONTRAT_ENTREE + 1, 500, 1).setDataValidation(natureContratRule);
+
+    var statutPosteRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(STATUTS_POSTE)
+      .setAllowInvalid(true)
+      .build();
+    empSheet.getRange(2, COL_EMPLOYES.STATUT_POSTE_ENTREE + 1, 500, 1).setDataValidation(statutPosteRule);
+
+    var sitFamEntreeRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(SITUATIONS_FAMILIALES)
+      .setAllowInvalid(true)
+      .build();
+    empSheet.getRange(2, COL_EMPLOYES.SITUATION_FAMILIALE_ENTREE + 1, 500, 1).setDataValidation(sitFamEntreeRule);
   }
 
   // 2. Creer les feuilles supplementaires si elles n'existent pas
@@ -301,12 +364,9 @@ function addSampleData() {
     return;
   }
 
-  // Colonnes: EMAIL, MATRICULE, NOM, PRENOM, POSTE, DEPARTEMENT, AGENCE, MANAGER_EMAIL, ROLE,
-  //   SOLDE_CONGES, SOLDE_INITIAL, ACTIF, DATE_NAISSANCE, LIEU_NAISSANCE, NATIONALITE, NUM_CNI,
-  //   SITUATION_FAMILIALE, NB_ENFANTS, TELEPHONE, TELEPHONE_PRO, ADRESSE,
-  //   CONTACT_URGENCE_NOM, CONTACT_URGENCE_TEL, CONTACT_URGENCE_LIEN,
-  //   TYPE_CONTRAT, DATE_EMBAUCHE, DATE_FIN_CONTRAT, DATE_FIN_ESSAI, PHOTO_URL
-  var pad = ['','','','','','',0,'','','','','','','CDI','','',''];
+  // 12 champs de base + 17 champs SIRH Phase 1 + 22 champs conformite BF = 51 colonnes
+  var pad = ['','','','','','',0,'','','','','','','CDI','','','',
+    '','','','','','','','','','','','','','','','','','','','','',''];
   var sampleEmployees = [
     ['employe1@microfinance.com', 'M0001', 'Dupont', 'Jean', 'Analyste Credit', 'Direction Clientele', 'Agence 1', 'chef1@microfinance.com', 'EMPLOYE', 30, 30, true].concat(pad),
     ['employe2@microfinance.com', 'M0002', 'Martin', 'Marie', 'Comptable', 'Direction Administrative et Financiere', '', 'chefdept1@microfinance.com', 'EMPLOYE', 30, 30, true].concat(pad),

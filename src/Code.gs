@@ -125,7 +125,11 @@ function server_getDropdownData() {
     mouvementTypes: MOUVEMENT_TYPES,
     documentTypes: DOCUMENT_TYPES,
     onboardingStatuts: Object.values(ONBOARDING_STATUS),
-    contractStatuts: Object.values(CONTRACT_STATUS)
+    contractStatuts: Object.values(CONTRACT_STATUS),
+    genres: GENRES,
+    niveauxEtude: NIVEAUX_ETUDE,
+    naturesContrat: NATURES_CONTRAT,
+    statutsPoste: STATUTS_POSTE
   };
 }
 

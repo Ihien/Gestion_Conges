@@ -60,7 +60,29 @@ function PersonnelService_updateFullProfile(data) {
     dateEmbauche: COL_EMPLOYES.DATE_EMBAUCHE,
     dateFinContrat: COL_EMPLOYES.DATE_FIN_CONTRAT,
     dateFinEssai: COL_EMPLOYES.DATE_FIN_ESSAI,
-    photoUrl: COL_EMPLOYES.PHOTO_URL
+    photoUrl: COL_EMPLOYES.PHOTO_URL,
+    matriculeBbf: COL_EMPLOYES.MATRICULE_BBF,
+    matriculePdr: COL_EMPLOYES.MATRICULE_PDR,
+    genre: COL_EMPLOYES.GENRE,
+    zone: COL_EMPLOYES.ZONE,
+    profession: COL_EMPLOYES.PROFESSION,
+    niveauEntree: COL_EMPLOYES.NIVEAU_ENTREE,
+    precedentPoste: COL_EMPLOYES.PRECEDENT_POSTE,
+    precedentEmployeur: COL_EMPLOYES.PRECEDENT_EMPLOYEUR,
+    emailPerso: COL_EMPLOYES.EMAIL_PERSO,
+    natureContratEntree: COL_EMPLOYES.NATURE_CONTRAT_ENTREE,
+    typeContratEntree: COL_EMPLOYES.TYPE_CONTRAT_ENTREE,
+    posteEntree: COL_EMPLOYES.POSTE_ENTREE,
+    etablissementEntree: COL_EMPLOYES.ETABLISSEMENT_ENTREE,
+    sectionEntree: COL_EMPLOYES.SECTION_ENTREE,
+    departementEntree: COL_EMPLOYES.DEPARTEMENT_ENTREE,
+    supHierarchiqueEntree: COL_EMPLOYES.SUP_HIERARCHIQUE_ENTREE,
+    statutPosteEntree: COL_EMPLOYES.STATUT_POSTE_ENTREE,
+    situationFamilialeEntree: COL_EMPLOYES.SITUATION_FAMILIALE_ENTREE,
+    numCompteStaff: COL_EMPLOYES.NUM_COMPTE_STAFF,
+    numCnss: COL_EMPLOYES.NUM_CNSS,
+    numCartePro: COL_EMPLOYES.NUM_CARTE_PRO,
+    suiviAJour: COL_EMPLOYES.SUIVI_A_JOUR
   };
 
   for (var key in fields) {
@@ -101,6 +123,7 @@ function PersonnelService_getAnnuaire(userProfile) {
       poste: allRows[i][COL_EMPLOYES.POSTE] || '',
       departement: allRows[i][COL_EMPLOYES.DEPARTEMENT] || '',
       agence: allRows[i][COL_EMPLOYES.AGENCE] || '',
+      genre: allRows[i][COL_EMPLOYES.GENRE] || '',
       telephonePro: allRows[i][COL_EMPLOYES.TELEPHONE_PRO] || '',
       photoUrl: allRows[i][COL_EMPLOYES.PHOTO_URL] || ''
     });

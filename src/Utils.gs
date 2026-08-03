@@ -230,7 +230,30 @@ function buildEmployeeObject(rowArray) {
     dateEmbauche: safeDate(rowArray[COL_EMPLOYES.DATE_EMBAUCHE]),
     dateFinContrat: safeDate(rowArray[COL_EMPLOYES.DATE_FIN_CONTRAT]),
     dateFinEssai: safeDate(rowArray[COL_EMPLOYES.DATE_FIN_ESSAI]),
-    photoUrl: rowArray[COL_EMPLOYES.PHOTO_URL] || ''
+    photoUrl: rowArray[COL_EMPLOYES.PHOTO_URL] || '',
+    // Conformite BF
+    matriculeBbf: rowArray[COL_EMPLOYES.MATRICULE_BBF] || '',
+    matriculePdr: rowArray[COL_EMPLOYES.MATRICULE_PDR] || '',
+    genre: rowArray[COL_EMPLOYES.GENRE] || '',
+    zone: rowArray[COL_EMPLOYES.ZONE] || '',
+    profession: rowArray[COL_EMPLOYES.PROFESSION] || '',
+    niveauEntree: rowArray[COL_EMPLOYES.NIVEAU_ENTREE] || '',
+    precedentPoste: rowArray[COL_EMPLOYES.PRECEDENT_POSTE] || '',
+    precedentEmployeur: rowArray[COL_EMPLOYES.PRECEDENT_EMPLOYEUR] || '',
+    emailPerso: rowArray[COL_EMPLOYES.EMAIL_PERSO] || '',
+    natureContratEntree: rowArray[COL_EMPLOYES.NATURE_CONTRAT_ENTREE] || '',
+    typeContratEntree: rowArray[COL_EMPLOYES.TYPE_CONTRAT_ENTREE] || '',
+    posteEntree: rowArray[COL_EMPLOYES.POSTE_ENTREE] || '',
+    etablissementEntree: rowArray[COL_EMPLOYES.ETABLISSEMENT_ENTREE] || '',
+    sectionEntree: rowArray[COL_EMPLOYES.SECTION_ENTREE] || '',
+    departementEntree: rowArray[COL_EMPLOYES.DEPARTEMENT_ENTREE] || '',
+    supHierarchiqueEntree: rowArray[COL_EMPLOYES.SUP_HIERARCHIQUE_ENTREE] || '',
+    statutPosteEntree: rowArray[COL_EMPLOYES.STATUT_POSTE_ENTREE] || '',
+    situationFamilialeEntree: rowArray[COL_EMPLOYES.SITUATION_FAMILIALE_ENTREE] || '',
+    numCompteStaff: rowArray[COL_EMPLOYES.NUM_COMPTE_STAFF] || '',
+    numCnss: rowArray[COL_EMPLOYES.NUM_CNSS] || '',
+    numCartePro: rowArray[COL_EMPLOYES.NUM_CARTE_PRO] || '',
+    suiviAJour: rowArray[COL_EMPLOYES.SUIVI_A_JOUR] === true || rowArray[COL_EMPLOYES.SUIVI_A_JOUR] === 'TRUE' || rowArray[COL_EMPLOYES.SUIVI_A_JOUR] === 'Oui'
   };
 }
 
