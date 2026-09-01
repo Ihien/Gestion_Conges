@@ -247,7 +247,8 @@ var SHEET_NAMES_SIRH = {
   MOUVEMENTS: 'Mouvements',
   DOCUMENTS_RH: 'DocumentsRH',
   ONBOARDING: 'Onboarding',
-  CONTRATS: 'Contrats'
+  CONTRATS: 'Contrats',
+  DEMANDES_DOCUMENTS: 'DemandesDocuments'
 };
 
 // ===== COLONNES FEUILLE MOUVEMENTS =====
@@ -368,6 +369,33 @@ var DOCUMENT_TYPES = [
   'Attestation de stage',
   'Attestation de presence'
 ];
+
+// ===== COLONNES FEUILLE DEMANDES DOCUMENTS =====
+var COL_DEMANDES_DOC = {
+  DEMANDE_DOC_ID: 0,
+  EMAIL_EMP: 1,
+  TYPE_DOCUMENT: 2,
+  DATE_DEMANDE: 3,
+  STATUT: 4,
+  DATE_TRAITEMENT: 5,
+  TRAITE_PAR: 6,
+  DOCUMENT_URL: 7,
+  NOTES_EMP: 8,
+  NOTES_RH: 9
+};
+
+var HEADERS_DEMANDES_DOC = [
+  'DEMANDE_DOC_ID', 'EMAIL_EMP', 'TYPE_DOCUMENT', 'DATE_DEMANDE',
+  'STATUT', 'DATE_TRAITEMENT', 'TRAITE_PAR', 'DOCUMENT_URL',
+  'NOTES_EMP', 'NOTES_RH'
+];
+
+var DEMANDE_DOC_STATUS = {
+  EN_ATTENTE: 'En attente',
+  EN_COURS: 'En cours',
+  TRAITEE: 'Traitee',
+  REJETEE: 'Rejetee'
+};
 
 // ===== CONFIG DEFAULTS =====
 var DEFAULT_CONFIG = {

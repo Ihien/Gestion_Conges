@@ -97,7 +97,8 @@ function formatDateDisplay(dateStr) {
 
 function getStatusBadgeClass(statut) {
   var m = {'Soumis':'badge-soumis','Approuve N1':'badge-approuve-n1','Rejete N1':'badge-rejete-n1',
-    'Valide':'badge-valide','Rejete':'badge-rejete-final','Annule':'badge-annule'};
+    'Valide':'badge-valide','Rejete':'badge-rejete-final','Annule':'badge-annule',
+    'En attente':'badge-en-attente','En cours':'badge-en-cours','Traitee':'badge-traitee','Rejetee':'badge-rejetee'};
   return m[statut] || 'badge-soumis';
 }
 

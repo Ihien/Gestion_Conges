@@ -8,18 +8,20 @@
 // =============================================================
 // DASHBOARD
 // =============================================================
-var DashboardState = { myRequests: [], pendingRequests: [], teamRequests: [] };
+var DashboardState = { myRequests: [], pendingRequests: [], teamRequests: [], stats: null, myDocRequests: [] };
 
 function loadDashboard() {
   var content = document.getElementById('app-content');
   var role = App.userProfile.role;
-  var promises = [serverCall('server_getMyRequests'), serverCall('server_getPendingForMe')];
+  var promises = [serverCall('server_getMyRequests'), serverCall('server_getPendingForMe'), serverCall('server_getDashboardStats'), serverCall('server_getMyDocumentRequests')];
   if (role !== 'EMPLOYE') promises.push(serverCall('server_getTeamRequests'));
 
   Promise.all(promises).then(function(results) {
     DashboardState.myRequests = results[0] || [];
     DashboardState.pendingRequests = results[1] || [];
-    DashboardState.teamRequests = results[2] || [];
+    DashboardState.stats = results[2] || {};
+    DashboardState.myDocRequests = results[3] || [];
+    DashboardState.teamRequests = results[4] || [];
     content.innerHTML = renderDashboard();
   }).catch(function(error) {
     content.innerHTML = '<div class="alert alert-danger">Erreur : ' + escapeHtml(error.message) + '</div>';
@@ -58,6 +60,78 @@ function renderDashboard() {
     html += '<div class="card"><div class="card-header"><h2 class="card-title">Demandes de l\'equipe</h2></div>';
     html += renderTableDemandes(DashboardState.teamRequests, {showEmployee:true}) + '</div>';
   }
+
+  var st = DashboardState.stats;
+  if (st && (st.conges || st.documents)) {
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Suivi par categorie</h2></div>';
+    if (st.conges) {
+      html += '<h3 style="font-size:0.95rem;color:var(--color-gray-700);margin-bottom:12px;">Conges (' + st.conges.total + ' demandes)</h3>';
+      html += '<div class="stats-grid" style="margin-bottom:20px;">';
+      html += '<div class="stat-card"><div class="stat-value" style="color:var(--color-info);">' + st.conges.soumis + '</div><div class="stat-label">Soumises</div></div>';
+      html += '<div class="stat-card"><div class="stat-value" style="color:var(--color-warning);">' + st.conges.enCours + '</div><div class="stat-label">En cours</div></div>';
+      html += '<div class="stat-card"><div class="stat-value" style="color:var(--color-success);">' + st.conges.valide + '</div><div class="stat-label">Validees</div></div>';
+      html += '<div class="stat-card"><div class="stat-value" style="color:var(--color-danger);">' + st.conges.rejete + '</div><div class="stat-label">Rejetees</div></div>';
+      html += '<div class="stat-card"><div class="stat-value" style="color:var(--color-gray-500);">' + st.conges.annule + '</div><div class="stat-label">Annulees</div></div>';
+      html += '</div>';
+    }
+    if (st.documents) {
+      html += '<h3 style="font-size:0.95rem;color:var(--color-gray-700);margin-bottom:12px;">Documents RH (' + st.documents.total + ' demandes)</h3>';
+      html += '<div class="stats-grid">';
+      html += '<div class="stat-card"><div class="stat-value" style="color:var(--color-warning);">' + st.documents.enAttente + '</div><div class="stat-label">En attente</div></div>';
+      html += '<div class="stat-card"><div class="stat-value" style="color:var(--color-info);">' + st.documents.enCours + '</div><div class="stat-label">En cours</div></div>';
+      html += '<div class="stat-card"><div class="stat-value" style="color:var(--color-success);">' + st.documents.traitee + '</div><div class="stat-label">Traitees</div></div>';
+      html += '<div class="stat-card"><div class="stat-value" style="color:var(--color-danger);">' + st.documents.rejetee + '</div><div class="stat-label">Rejetees</div></div>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  if (DashboardState.myDocRequests.length > 0) {
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Mes demandes de documents</h2></div>';
+    html += renderDocRequestsTable(DashboardState.myDocRequests, false);
+    html += '</div>';
+  }
+
+  return html;
+}
+
+function renderDocRequestsTable(requests, showEmployee) {
+  if (!requests || requests.length === 0) {
+    return '<div class="table-empty"><div style="font-size:3rem;margin-bottom:12px;">&#128196;</div><p>Aucune demande de document</p></div>';
+  }
+  var html = '<div class="table-responsive"><table class="table"><thead><tr>';
+  if (showEmployee) html += '<th>Employe</th>';
+  html += '<th>Type de document</th><th>Date demande</th><th>Statut</th><th>Date traitement</th><th>Notes</th>';
+  if (showEmployee) html += '<th>Actions</th>';
+  else html += '<th>Document</th>';
+  html += '</tr></thead><tbody>';
+  for (var i = 0; i < requests.length; i++) {
+    var r = requests[i];
+    html += '<tr>';
+    if (showEmployee) html += '<td><strong>' + escapeHtml((r.prenom || '') + ' ' + (r.nom || '')) + '</strong><br><span class="text-muted text-sm">' + escapeHtml(r.emailEmp) + '</span></td>';
+    html += '<td>' + escapeHtml(r.typeDocument) + '</td>';
+    html += '<td>' + escapeHtml(r.dateDemande || '-') + '</td>';
+    html += '<td>' + renderBadgeStatut(r.statut) + '</td>';
+    html += '<td>' + escapeHtml(r.dateTraitement || '-') + '</td>';
+    html += '<td>' + escapeHtml(r.notesRh || r.notesEmp || '-') + '</td>';
+    if (showEmployee) {
+      html += '<td>';
+      if (r.statut === 'En attente') {
+        html += '<div class="flex gap-8"><button class="btn btn-sm btn-success" onclick="processDocRequest(\'' + escapeHtml(r.demandeDocId) + '\',\'TRAITER\')">Traiter</button>';
+        html += '<button class="btn btn-sm btn-danger" onclick="processDocRequest(\'' + escapeHtml(r.demandeDocId) + '\',\'REJETER\')">Rejeter</button></div>';
+      } else if (r.statut === 'En cours') {
+        html += '<button class="btn btn-sm btn-success" onclick="processDocRequest(\'' + escapeHtml(r.demandeDocId) + '\',\'TRAITER\')">Finaliser</button>';
+      } else { html += '-'; }
+      html += '</td>';
+    } else {
+      html += '<td>';
+      if (r.documentUrl) html += '<a href="' + escapeHtml(r.documentUrl) + '" target="_blank" class="btn btn-sm btn-outline">Telecharger</a>';
+      else html += '-';
+      html += '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
   return html;
 }
 
@@ -489,12 +563,25 @@ function loadMonProfil() {
     html += '<div class="stat-card"><div class="stat-value">'+(p.soldeInitial||30)+'</div><div class="stat-label">Allocation annuelle</div></div>';
     html += '</div></div>';
 
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Demandes de documents RH</h2><button class="btn btn-primary btn-sm" onclick="showDocRequestModal()">+ Demander un document</button></div>';
+    html += '<div id="profil-doc-requests"><div style="text-align:center;padding:20px;"><div class="spinner"></div></div></div></div>';
+
     html += '<div id="profil-documents"></div>';
     c.innerHTML = html;
 
+    serverCall('server_getMyDocumentRequests').then(function(reqs) {
+      var drHtml;
+      if (!reqs || reqs.length === 0) {
+        drHtml = '<div class="table-empty"><div style="font-size:3rem;margin-bottom:12px;">&#128203;</div><p>Aucune demande en cours. Cliquez sur "+ Demander un document" pour initier une demande.</p></div>';
+      } else {
+        drHtml = renderDocRequestsTable(reqs, false);
+      }
+      document.getElementById('profil-doc-requests').innerHTML = drHtml;
+    }).catch(function(){ document.getElementById('profil-doc-requests').innerHTML = ''; });
+
     serverCall('server_getEmployeeDocuments', p.email).then(function(docs) {
       if (!docs || docs.length === 0) return;
-      var dh = '<div class="card"><div class="card-header"><h2 class="card-title">Mes documents</h2></div>';
+      var dh = '<div class="card"><div class="card-header"><h2 class="card-title">Mes documents generes</h2></div>';
       dh += '<div class="table-responsive"><table class="table"><thead><tr><th>Date</th><th>Type</th><th>Action</th></tr></thead><tbody>';
       for (var i = 0; i < docs.length; i++) {
         dh += '<tr><td>' + escapeHtml(docs[i].dateGeneration) + '</td>';
@@ -506,6 +593,38 @@ function loadMonProfil() {
     }).catch(function(){});
   }).catch(function(err) {
     c.innerHTML = '<div class="alert alert-danger">Erreur : ' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+function showDocRequestModal() {
+  var html = '<h3 class="modal-title">Demander un document RH</h3>';
+  html += '<form id="form-doc-request" onsubmit="submitDocRequest(event);return false;">';
+  html += '<div class="form-group"><label class="form-label">Type de document *</label><select name="typeDocument" class="form-select" required>';
+  html += '<option value="">-- Selectionner --</option>';
+  var docTypes = ['Attestation de travail', 'Certificat de travail', 'Attestation de stage', 'Attestation de presence'];
+  for (var i = 0; i < docTypes.length; i++) html += '<option value="' + docTypes[i] + '">' + docTypes[i] + '</option>';
+  html += '</select></div>';
+  html += '<div class="form-group"><label class="form-label">Notes (optionnel)</label><textarea name="notes" class="form-textarea" placeholder="Precisions sur votre demande..."></textarea></div>';
+  html += '<div class="modal-actions"><button type="button" class="btn btn-outline" onclick="forceCloseModal()">Annuler</button>';
+  html += '<button type="submit" class="btn btn-primary" id="btn-doc-request">Soumettre</button></div></form>';
+  showModal(html);
+}
+
+function submitDocRequest(event) {
+  event.preventDefault();
+  var f = document.getElementById('form-doc-request');
+  var typeDocument = f.querySelector('[name="typeDocument"]').value;
+  var notes = f.querySelector('[name="notes"]').value;
+  if (!typeDocument) { showToast('Veuillez selectionner un type de document', 'error'); return; }
+  var btn = document.getElementById('btn-doc-request');
+  btn.disabled = true; btn.textContent = 'Envoi...';
+  serverCall('server_requestDocument', [typeDocument, notes]).then(function() {
+    forceCloseModal();
+    showToast('Demande soumise avec succes', 'success');
+    loadMonProfil();
+  }).catch(function(err) {
+    btn.disabled = false; btn.textContent = 'Soumettre';
+    showToast('Erreur: ' + err.message, 'error');
   });
 }
 
@@ -988,8 +1107,29 @@ function adminLoadDocuments() {
   var ct = document.getElementById('admin-tab-content');
   ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
 
-  serverCall('server_getAllDocuments').then(function(docs) {
-    var html = '<div class="mb-16"><button class="btn btn-primary" onclick="showGenerateDocModal()">+ Generer un document</button></div>';
+  Promise.all([
+    serverCall('server_getAllDocumentRequests'),
+    serverCall('server_getAllDocuments')
+  ]).then(function(results) {
+    var docRequests = results[0] || [];
+    var docs = results[1] || [];
+
+    var pending = docRequests.filter(function(r) { return r.statut === 'En attente' || r.statut === 'En cours'; });
+    var html = '';
+
+    if (pending.length > 0) {
+      html += '<div class="card-header" style="padding:0 0 16px 0;"><h3 class="card-title">Demandes en attente de traitement</h3><span class="badge-count" style="font-size:0.9rem;min-width:24px;height:24px;">' + pending.length + '</span></div>';
+      html += renderDocRequestsTable(pending, true);
+      html += '<hr style="margin:24px 0;border:none;border-top:1px solid var(--color-gray-200);">';
+    }
+
+    if (docRequests.length > 0) {
+      html += '<div class="card-header" style="padding:0 0 16px 0;"><h3 class="card-title">Toutes les demandes de documents</h3><span class="text-muted">' + docRequests.length + ' demandes</span></div>';
+      html += renderDocRequestsTable(docRequests, true);
+      html += '<hr style="margin:24px 0;border:none;border-top:1px solid var(--color-gray-200);">';
+    }
+
+    html += '<div class="card-header" style="padding:0 0 16px 0;"><h3 class="card-title">Documents generes</h3><button class="btn btn-primary btn-sm" onclick="showGenerateDocModal()" style="margin-left:auto;">+ Generer un document</button></div>';
 
     if (!docs || docs.length === 0) {
       html += '<div class="table-empty"><div style="font-size:3rem;margin-bottom:12px;">&#128220;</div><p>Aucun document genere</p></div>';
@@ -1013,6 +1153,37 @@ function adminLoadDocuments() {
     }
     ct.innerHTML = html;
   }).catch(function(err) { ct.innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>'; });
+}
+
+function processDocRequest(demandeId, action) {
+  var modalTitle = action === 'TRAITER' ? 'Traiter la demande' : 'Rejeter la demande';
+  var btnText = action === 'TRAITER' ? 'Confirmer le traitement' : 'Confirmer le rejet';
+  var btnClass = action === 'TRAITER' ? 'btn-success' : 'btn-danger';
+
+  var html = '<h3 class="modal-title">' + modalTitle + '</h3>';
+  html += '<div class="form-group"><label class="form-label">Notes RH' + (action === 'REJETER' ? ' (obligatoire)' : ' (optionnel)') + '</label>';
+  html += '<textarea class="form-textarea" id="doc-req-notes" placeholder="Commentaire..."></textarea></div>';
+  html += '<div class="modal-actions">';
+  html += '<button class="btn btn-outline" onclick="forceCloseModal()">Annuler</button>';
+  html += '<button class="btn ' + btnClass + '" id="btn-process-doc" onclick="confirmProcessDocRequest(\'' + escapeHtml(demandeId) + '\',\'' + action + '\')">' + btnText + '</button>';
+  html += '</div>';
+  showModal(html);
+}
+
+function confirmProcessDocRequest(demandeId, action) {
+  var notes = document.getElementById('doc-req-notes').value.trim();
+  if (action === 'REJETER' && !notes) { showToast('Les notes sont obligatoires pour un rejet', 'error'); return; }
+  var btn = document.getElementById('btn-process-doc');
+  btn.disabled = true; btn.textContent = 'Traitement...';
+  serverCall('server_processDocumentRequest', [demandeId, action, notes]).then(function() {
+    forceCloseModal();
+    showToast('Demande traitee avec succes', 'success');
+    if (App.currentPage === 'Administration') adminLoadDocuments();
+    else if (App.currentPage === 'Dashboard') loadDashboard();
+  }).catch(function(err) {
+    btn.disabled = false; btn.textContent = 'Reessayer';
+    showToast('Erreur: ' + err.message, 'error');
+  });
 }
 
 function showGenerateDocModal() {

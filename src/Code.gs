@@ -126,6 +126,7 @@ function server_getDropdownData() {
     documentTypes: DOCUMENT_TYPES,
     onboardingStatuts: Object.values(ONBOARDING_STATUS),
     contractStatuts: Object.values(CONTRACT_STATUS),
+    demandeDocStatuts: Object.values(DEMANDE_DOC_STATUS),
     genres: GENRES,
     niveauxEtude: NIVEAUX_ETUDE,
     naturesContrat: NATURES_CONTRAT,
@@ -345,4 +346,58 @@ function server_getEmployeeDocuments(emailEmp) {
 function server_getAllDocuments() {
   assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
   return DocumentService_getAll();
+}
+
+// ===================================================================
+// DEMANDES DE DOCUMENTS (employes)
+// ===================================================================
+
+function server_requestDocument(typeDocument, notes) {
+  var profile = assertAuthenticated();
+  return DocumentRequestService_create(profile.email, typeDocument, notes);
+}
+
+function server_getMyDocumentRequests() {
+  var profile = assertAuthenticated();
+  return DocumentRequestService_getByEmployee(profile.email);
+}
+
+function server_getAllDocumentRequests() {
+  assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return DocumentRequestService_getAll();
+}
+
+function server_processDocumentRequest(demandeId, action, notesRh) {
+  var profile = assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return DocumentRequestService_process(demandeId, action, notesRh, profile.email);
+}
+
+function server_getDashboardStats() {
+  var profile = assertAuthenticated();
+  var stats = {};
+
+  var myRequests = LeaveService_getMyRequests(profile);
+  stats.conges = { total: myRequests.length, soumis: 0, enCours: 0, valide: 0, rejete: 0, annule: 0 };
+  for (var i = 0; i < myRequests.length; i++) {
+    switch(myRequests[i].statut) {
+      case 'Soumis': stats.conges.soumis++; break;
+      case 'Approuve N1': stats.conges.enCours++; break;
+      case 'Valide': stats.conges.valide++; break;
+      case 'Rejete N1': case 'Rejete': stats.conges.rejete++; break;
+      case 'Annule': stats.conges.annule++; break;
+    }
+  }
+
+  var myDocRequests = DocumentRequestService_getByEmployee(profile.email);
+  stats.documents = { total: myDocRequests.length, enAttente: 0, enCours: 0, traitee: 0, rejetee: 0 };
+  for (var j = 0; j < myDocRequests.length; j++) {
+    switch(myDocRequests[j].statut) {
+      case 'En attente': stats.documents.enAttente++; break;
+      case 'En cours': stats.documents.enCours++; break;
+      case 'Traitee': stats.documents.traitee++; break;
+      case 'Rejetee': stats.documents.rejetee++; break;
+    }
+  }
+
+  return stats;
 }

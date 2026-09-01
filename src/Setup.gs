@@ -46,6 +46,7 @@ function createAllSheets() {
   createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.ONBOARDING, HEADERS_ONBOARDING);
   createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.CONTRATS, HEADERS_CONTRATS);
   createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.DOCUMENTS_RH, HEADERS_DOCUMENTS_RH);
+  createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.DEMANDES_DOCUMENTS, HEADERS_DEMANDES_DOC);
 
   // Supprimer la feuille par defaut "Feuille 1" si elle existe et est vide
   var defaultSheet = ss.getSheetByName('Feuille 1') || ss.getSheetByName('Sheet1');
@@ -293,6 +294,7 @@ function migrateToSIRH() {
   createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.ONBOARDING, HEADERS_ONBOARDING);
   createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.CONTRATS, HEADERS_CONTRATS);
   createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.DOCUMENTS_RH, HEADERS_DOCUMENTS_RH);
+  createSheetIfNotExists_(ss, SHEET_NAMES_SIRH.DEMANDES_DOCUMENTS, HEADERS_DEMANDES_DOC);
 
   // 3. Ajouter les cles de config manquantes
   var newConfigKeys = ['CALENDAR_SYNC_ENABLED', 'HEURE_REFERENCE'];

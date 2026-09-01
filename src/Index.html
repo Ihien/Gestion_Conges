@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SIRH - Gestion des Ressources Humaines</title>
+  <title>Baobab SIRH - Gestion des Ressources Humaines</title>
   <base target="_top">
   <?!= include('Styles') ?>
 </head>
@@ -24,6 +24,10 @@
   <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal(event)">
     <div class="modal-content" id="modal-content" onclick="event.stopPropagation()"></div>
   </div>
+
+  <footer class="app-footer">
+    <span>Baobab Burkina</span> — Systeme d'Information RH
+  </footer>
 
   <script>
     var APP_USER_PROFILE = <?!= userProfile ?>;

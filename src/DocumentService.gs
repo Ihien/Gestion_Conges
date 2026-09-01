@@ -265,3 +265,130 @@ function createDocumentPdf_(content, profile, typeDocument, now) {
 
   return pdfFile.getUrl();
 }
+
+// ===================================================================
+// DEMANDES DE DOCUMENTS (initiees par les employes)
+// ===================================================================
+
+function DocumentRequestService_create(emailEmp, typeDocument, notes) {
+  if (DOCUMENT_TYPES.indexOf(typeDocument) === -1) {
+    throw new Error('Type de document invalide: ' + typeDocument);
+  }
+  var emp = SheetDAO_getRowByKey(SHEET_NAMES.EMPLOYES, COL_EMPLOYES.EMAIL, emailEmp);
+  if (!emp) throw new Error('Employe non trouve: ' + emailEmp);
+
+  var demandeId = generateUUID();
+  var now = new Date();
+
+  var row = [];
+  row[COL_DEMANDES_DOC.DEMANDE_DOC_ID] = demandeId;
+  row[COL_DEMANDES_DOC.EMAIL_EMP] = emailEmp;
+  row[COL_DEMANDES_DOC.TYPE_DOCUMENT] = typeDocument;
+  row[COL_DEMANDES_DOC.DATE_DEMANDE] = now;
+  row[COL_DEMANDES_DOC.STATUT] = DEMANDE_DOC_STATUS.EN_ATTENTE;
+  row[COL_DEMANDES_DOC.DATE_TRAITEMENT] = '';
+  row[COL_DEMANDES_DOC.TRAITE_PAR] = '';
+  row[COL_DEMANDES_DOC.DOCUMENT_URL] = '';
+  row[COL_DEMANDES_DOC.NOTES_EMP] = notes || '';
+  row[COL_DEMANDES_DOC.NOTES_RH] = '';
+
+  SheetDAO_appendRow(SHEET_NAMES_SIRH.DEMANDES_DOCUMENTS, row);
+
+  return { success: true, demandeId: demandeId };
+}
+
+function DocumentRequestService_getByEmployee(emailEmp) {
+  var allRows = SheetDAO_getAllRawData(SHEET_NAMES_SIRH.DEMANDES_DOCUMENTS);
+  var results = [];
+  for (var i = 0; i < allRows.length; i++) {
+    if (String(allRows[i][COL_DEMANDES_DOC.EMAIL_EMP]).toLowerCase() === emailEmp.toLowerCase()) {
+      results.push(buildDocRequestObject_(allRows[i]));
+    }
+  }
+  results.sort(function(a, b) { return a.dateDemande > b.dateDemande ? -1 : 1; });
+  return results;
+}
+
+function DocumentRequestService_getAll() {
+  var allRows = SheetDAO_getAllRawData(SHEET_NAMES_SIRH.DEMANDES_DOCUMENTS);
+  var empData = SheetDAO_getAllRawData(SHEET_NAMES.EMPLOYES);
+  var empMap = {};
+  for (var k = 0; k < empData.length; k++) {
+    empMap[String(empData[k][COL_EMPLOYES.EMAIL]).toLowerCase()] = empData[k];
+  }
+  var results = [];
+  for (var i = 0; i < allRows.length; i++) {
+    var obj = buildDocRequestObject_(allRows[i]);
+    var emp = empMap[obj.emailEmp.toLowerCase()];
+    if (emp) {
+      obj.nom = emp[COL_EMPLOYES.NOM] || '';
+      obj.prenom = emp[COL_EMPLOYES.PRENOM] || '';
+      obj.departement = emp[COL_EMPLOYES.DEPARTEMENT] || '';
+      obj.matricule = emp[COL_EMPLOYES.MATRICULE] || '';
+    }
+    results.push(obj);
+  }
+  results.sort(function(a, b) { return a.dateDemande > b.dateDemande ? -1 : 1; });
+  return results;
+}
+
+function DocumentRequestService_process(demandeId, action, notesRh, creatorEmail) {
+  var allRows = SheetDAO_getAllRawData(SHEET_NAMES_SIRH.DEMANDES_DOCUMENTS);
+  var rowIndex = -1;
+  var row = null;
+  for (var i = 0; i < allRows.length; i++) {
+    if (allRows[i][COL_DEMANDES_DOC.DEMANDE_DOC_ID] === demandeId) {
+      rowIndex = i + 2;
+      row = allRows[i];
+      break;
+    }
+  }
+  if (!row) throw new Error('Demande non trouvee: ' + demandeId);
+
+  var now = new Date();
+  var updates = {};
+
+  if (action === 'TRAITER') {
+    var emailEmp = row[COL_DEMANDES_DOC.EMAIL_EMP];
+    var typeDocument = row[COL_DEMANDES_DOC.TYPE_DOCUMENT];
+    var result = DocumentService_generate(emailEmp, typeDocument, notesRh, creatorEmail);
+    updates[COL_DEMANDES_DOC.STATUT] = DEMANDE_DOC_STATUS.TRAITEE;
+    updates[COL_DEMANDES_DOC.DOCUMENT_URL] = result.url || '';
+  } else if (action === 'EN_COURS') {
+    updates[COL_DEMANDES_DOC.STATUT] = DEMANDE_DOC_STATUS.EN_COURS;
+  } else if (action === 'REJETER') {
+    updates[COL_DEMANDES_DOC.STATUT] = DEMANDE_DOC_STATUS.REJETEE;
+  } else {
+    throw new Error('Action invalide: ' + action);
+  }
+
+  updates[COL_DEMANDES_DOC.DATE_TRAITEMENT] = now;
+  updates[COL_DEMANDES_DOC.TRAITE_PAR] = creatorEmail;
+  if (notesRh) updates[COL_DEMANDES_DOC.NOTES_RH] = notesRh;
+
+  SheetDAO_updateCells(SHEET_NAMES_SIRH.DEMANDES_DOCUMENTS, rowIndex, updates);
+  return { success: true };
+}
+
+function buildDocRequestObject_(rowArray) {
+  function safeDate(val) {
+    if (val instanceof Date) return formatDate(val);
+    return val ? String(val) : '';
+  }
+  return {
+    demandeDocId: rowArray[COL_DEMANDES_DOC.DEMANDE_DOC_ID] || '',
+    emailEmp: rowArray[COL_DEMANDES_DOC.EMAIL_EMP] || '',
+    typeDocument: rowArray[COL_DEMANDES_DOC.TYPE_DOCUMENT] || '',
+    dateDemande: safeDate(rowArray[COL_DEMANDES_DOC.DATE_DEMANDE]),
+    statut: rowArray[COL_DEMANDES_DOC.STATUT] || '',
+    dateTraitement: safeDate(rowArray[COL_DEMANDES_DOC.DATE_TRAITEMENT]),
+    traitePar: rowArray[COL_DEMANDES_DOC.TRAITE_PAR] || '',
+    documentUrl: rowArray[COL_DEMANDES_DOC.DOCUMENT_URL] || '',
+    notesEmp: rowArray[COL_DEMANDES_DOC.NOTES_EMP] || '',
+    notesRh: rowArray[COL_DEMANDES_DOC.NOTES_RH] || '',
+    nom: '',
+    prenom: '',
+    departement: '',
+    matricule: ''
+  };
+}
