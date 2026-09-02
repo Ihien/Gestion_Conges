@@ -8,12 +8,12 @@
 // =============================================================
 // DASHBOARD
 // =============================================================
-var DashboardState = { myRequests: [], pendingRequests: [], teamRequests: [], stats: null, myDocRequests: [] };
+var DashboardState = { myRequests: [], pendingRequests: [], teamRequests: [], stats: null, myDocRequests: [], balanceDetail: null };
 
 function loadDashboard() {
   var content = document.getElementById('app-content');
   var role = App.userProfile.role;
-  var promises = [serverCall('server_getMyRequests'), serverCall('server_getPendingForMe'), serverCall('server_getDashboardStats'), serverCall('server_getMyDocumentRequests')];
+  var promises = [serverCall('server_getMyRequests'), serverCall('server_getPendingForMe'), serverCall('server_getDashboardStats'), serverCall('server_getMyDocumentRequests'), serverCall('server_getBalanceDetail')];
   if (role !== 'EMPLOYE') promises.push(serverCall('server_getTeamRequests'));
 
   Promise.all(promises).then(function(results) {
@@ -21,7 +21,8 @@ function loadDashboard() {
     DashboardState.pendingRequests = results[1] || [];
     DashboardState.stats = results[2] || {};
     DashboardState.myDocRequests = results[3] || [];
-    DashboardState.teamRequests = results[4] || [];
+    DashboardState.balanceDetail = results[4] || null;
+    DashboardState.teamRequests = results[5] || [];
     content.innerHTML = renderDashboard();
   }).catch(function(error) {
     content.innerHTML = '<div class="alert alert-danger">Erreur : ' + escapeHtml(error.message) + '</div>';
@@ -30,8 +31,13 @@ function loadDashboard() {
 
 function renderDashboard() {
   var html = '', role = App.userProfile.role, p = App.userProfile;
+  var bd = DashboardState.balanceDetail;
   html += '<div class="stats-grid">';
-  html += '<div class="stat-card"><div class="stat-value">'+(p.soldeConges||0)+'</div><div class="stat-label">Jours de conge restants</div></div>';
+  if (bd) {
+    html += '<div class="stat-card"><div class="stat-value">' + bd.disponible + '</div><div class="stat-label">Jours disponibles</div><div class="text-sm text-muted" style="margin-top:4px;">' + bd.acquis + ' acquis - ' + bd.consomme + ' pris</div></div>';
+  } else {
+    html += '<div class="stat-card"><div class="stat-value">'+(p.soldeConges||0)+'</div><div class="stat-label">Jours de conge restants</div></div>';
+  }
   html += '<div class="stat-card"><div class="stat-value">'+DashboardState.myRequests.length+'</div><div class="stat-label">Mes demandes</div></div>';
   if (DashboardState.pendingRequests.length > 0) {
     html += '<div class="stat-card" style="border-left:4px solid var(--color-warning);"><div class="stat-value" style="color:var(--color-warning);">'+DashboardState.pendingRequests.length+'</div><div class="stat-label">En attente de mon action</div></div>';
@@ -154,43 +160,53 @@ var MOTIF_REQUIRED_TYPES = ['Absence exceptionnelle', 'Conge maladie', 'Conge sa
 
 function loadNouvelDemande() {
   var p = App.userProfile, c = document.getElementById('app-content');
-  var html = '<div class="card"><div class="card-header"><h2 class="card-title">Nouvelle demande de conge</h2></div>';
-  html += '<form id="form-demande" onsubmit="submitDemande(event); return false;">';
-  html += '<h3 class="mb-8" style="font-size:1rem;color:var(--color-gray-700);">Informations de l\'employe</h3>';
-  html += '<div class="form-row">';
-  html += formField('Matricule','matricule','text',p.matricule,false,'M0001');
-  html += formField('Nom','nom','text',p.nom,true);
-  html += '</div><div class="form-row">';
-  html += formField('Prenom','prenom','text',p.prenom,true);
-  html += formField('Poste','poste','text',p.poste,true);
-  html += '</div><div class="form-row">';
-  html += '<div class="form-group"><label class="form-label">Departement</label><input type="text" name="departement" class="form-input form-readonly" value="'+escapeHtml(p.departement)+'" readonly></div>';
-  html += '<div class="form-group"><label class="form-label">Agence</label><input type="text" name="agence" class="form-input form-readonly" value="'+escapeHtml(p.agence||'Siege')+'" readonly></div>';
-  html += '</div>';
-  html += '<hr style="margin:20px 0;border:none;border-top:1px solid var(--color-gray-200);">';
-  html += '<h3 class="mb-8" style="font-size:1rem;color:var(--color-gray-700);">Details du conge</h3>';
-  html += '<div class="form-row"><div class="form-group"><label class="form-label">Type de conge *</label>';
-  html += '<select name="typeConge" class="form-select" onchange="onTypeCongeChange(this.value)">';
-  html += '<option value="">-- Selectionner --</option>';
-  html += '<option value="Conges payes">Conges payes</option>';
-  html += '<option value="Absence exceptionnelle">Absence exceptionnelle</option>';
-  html += '<option value="Conge maternite">Conge maternite</option>';
-  html += '<option value="Conge paternite">Conge paternite</option>';
-  html += '<option value="Conge maladie">Conge maladie</option>';
-  html += '<option value="Conge sans solde">Conge sans solde</option>';
-  html += '<option value="Permission speciale">Permission speciale</option>';
-  html += '</select></div>';
-  html += '<div class="form-group"><label class="form-label">Solde actuel</label><div class="stat-card" style="padding:8px;text-align:center;"><span class="stat-value" style="font-size:1.5rem;">'+(p.soldeConges||0)+'</span><span class="stat-label"> jours</span></div></div></div>';
-  html += '<div class="form-group hidden" id="motif-group"><label class="form-label">Motif / Justificatif *</label><textarea name="motif" class="form-textarea" placeholder="Precisez le motif ou le justificatif..."></textarea></div>';
-  html += '<div class="form-row"><div class="form-group"><label class="form-label">Date de debut *</label><input type="date" name="dateDebut" class="form-input" onchange="calcDays()"></div>';
-  html += '<div class="form-group"><label class="form-label">Date de fin *</label><input type="date" name="dateFin" class="form-input" onchange="calcDays()"></div></div>';
-  html += '<div class="form-group"><label class="form-label">Nombre de jours ouvres</label><div id="nb-jours-display" class="alert alert-info" style="display:inline-block;padding:8px 16px;">Selectionnez les dates</div><input type="hidden" name="nbJours" value="0"></div>';
-  html += '<div class="form-group"><label class="form-label">Responsable hierarchique</label><input type="text" class="form-input form-readonly" value="'+escapeHtml(p.managerEmail||'Non defini')+'" readonly></div>';
-  html += '<div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px;">';
-  html += '<button type="button" class="btn btn-outline" onclick="navigateTo(\'Dashboard\')">Annuler</button>';
-  html += '<button type="submit" class="btn btn-primary btn-lg" id="btn-submit">Soumettre la demande</button>';
-  html += '</div></form></div>';
-  c.innerHTML = html;
+  c.innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner"></div></div>';
+
+  serverCall('server_getBalanceDetail').then(function(bd) {
+    App._balanceDetail = bd;
+    var soldeDisponible = bd ? bd.disponible : (p.soldeConges || 0);
+    var html = '<div class="card"><div class="card-header"><h2 class="card-title">Nouvelle demande de conge</h2></div>';
+    html += '<form id="form-demande" onsubmit="submitDemande(event); return false;">';
+    html += '<h3 class="mb-8" style="font-size:1rem;color:var(--color-gray-700);">Informations de l\'employe</h3>';
+    html += '<div class="form-row">';
+    html += formField('Matricule','matricule','text',p.matricule,false,'M0001');
+    html += formField('Nom','nom','text',p.nom,true);
+    html += '</div><div class="form-row">';
+    html += formField('Prenom','prenom','text',p.prenom,true);
+    html += formField('Poste','poste','text',p.poste,true);
+    html += '</div><div class="form-row">';
+    html += '<div class="form-group"><label class="form-label">Departement</label><input type="text" name="departement" class="form-input form-readonly" value="'+escapeHtml(p.departement)+'" readonly></div>';
+    html += '<div class="form-group"><label class="form-label">Agence</label><input type="text" name="agence" class="form-input form-readonly" value="'+escapeHtml(p.agence||'Siege')+'" readonly></div>';
+    html += '</div>';
+    html += '<hr style="margin:20px 0;border:none;border-top:1px solid var(--color-gray-200);">';
+    html += '<h3 class="mb-8" style="font-size:1rem;color:var(--color-gray-700);">Details du conge</h3>';
+    html += '<div class="form-row"><div class="form-group"><label class="form-label">Type de conge *</label>';
+    html += '<select name="typeConge" class="form-select" onchange="onTypeCongeChange(this.value)">';
+    html += '<option value="">-- Selectionner --</option>';
+    html += '<option value="Conges payes">Conges payes</option>';
+    html += '<option value="Absence exceptionnelle">Absence exceptionnelle</option>';
+    html += '<option value="Conge maternite">Conge maternite</option>';
+    html += '<option value="Conge paternite">Conge paternite</option>';
+    html += '<option value="Conge maladie">Conge maladie</option>';
+    html += '<option value="Conge sans solde">Conge sans solde</option>';
+    html += '<option value="Permission speciale">Permission speciale</option>';
+    html += '</select></div>';
+    html += '<div class="form-group"><label class="form-label">Solde disponible</label><div class="stat-card" style="padding:8px;text-align:center;"><span class="stat-value" style="font-size:1.5rem;">' + soldeDisponible + '</span><span class="stat-label"> jours</span>';
+    if (bd) html += '<div class="text-sm text-muted" style="margin-top:2px;">' + bd.acquis + ' acquis (' + bd.moisTravailles + ' mois x ' + bd.tauxMensuel + ') - ' + bd.consomme + ' pris</div>';
+    html += '</div></div></div>';
+    html += '<div class="form-group hidden" id="motif-group"><label class="form-label">Motif / Justificatif *</label><textarea name="motif" class="form-textarea" placeholder="Precisez le motif ou le justificatif..."></textarea></div>';
+    html += '<div class="form-row"><div class="form-group"><label class="form-label">Date de debut *</label><input type="date" name="dateDebut" class="form-input" onchange="calcDays()"></div>';
+    html += '<div class="form-group"><label class="form-label">Date de fin *</label><input type="date" name="dateFin" class="form-input" onchange="calcDays()"></div></div>';
+    html += '<div class="form-group"><label class="form-label">Nombre de jours ouvres</label><div id="nb-jours-display" class="alert alert-info" style="display:inline-block;padding:8px 16px;">Selectionnez les dates</div><input type="hidden" name="nbJours" value="0"></div>';
+    html += '<div class="form-group"><label class="form-label">Responsable hierarchique</label><input type="text" class="form-input form-readonly" value="'+escapeHtml(p.managerEmail||'Non defini')+'" readonly></div>';
+    html += '<div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px;">';
+    html += '<button type="button" class="btn btn-outline" onclick="navigateTo(\'Dashboard\')">Annuler</button>';
+    html += '<button type="submit" class="btn btn-primary btn-lg" id="btn-submit">Soumettre la demande</button>';
+    html += '</div></form></div>';
+    c.innerHTML = html;
+  }).catch(function(err) {
+    c.innerHTML = '<div class="alert alert-danger">Erreur : ' + escapeHtml(err.message) + '</div>';
+  });
 }
 
 function formField(label, name, type, value, readonly, placeholder) {
@@ -218,7 +234,8 @@ function calcDays() {
       display.textContent = nb + ' jour'+(nb>1?'s':'')+' ouvre'+(nb>1?'s':'');
       display.className = 'alert alert-success';
       var type = document.querySelector('[name="typeConge"]').value;
-      if (type==='Conges payes' && nb > (App.userProfile.soldeConges||0)) { display.textContent += ' (ATTENTION: solde insuffisant!)'; display.className='alert alert-danger'; }
+      var soldeDispo = (App._balanceDetail ? App._balanceDetail.disponible : (App.userProfile.soldeConges||0));
+      if (type==='Conges payes' && nb > soldeDispo) { display.textContent += ' (ATTENTION: solde insuffisant!)'; display.className='alert alert-danger'; }
     } else { display.textContent='Aucun jour ouvre dans cette periode'; display.className='alert alert-warning'; }
   }).catch(function(){ display.textContent='Erreur de calcul'; display.className='alert alert-danger'; });
 }
@@ -239,7 +256,7 @@ function submitDemande(event) {
     dateDebut: f.querySelector('[name="dateDebut"]').value,
     dateFin: f.querySelector('[name="dateFin"]').value,
     nbJours: parseInt(f.querySelector('[name="nbJours"]').value) || 0,
-    soldeActuel: App.userProfile.soldeConges || 0
+    soldeActuel: App._balanceDetail ? App._balanceDetail.disponible : (App.userProfile.soldeConges || 0)
   };
   var v = ValidationFormulaire.validateDemandeForm(data);
   if (!v.valid) { ValidationFormulaire.showErrors(v.errors); return; }
@@ -558,16 +575,29 @@ function loadMonProfil() {
     html += buildDetailField('Precedent employeur', p.precedentEmployeur);
     html += '</div></div>';
 
-    html += '<div class="card"><div class="card-header"><h2 class="card-title">Solde de Conges</h2></div><div class="stats-grid">';
-    html += '<div class="stat-card"><div class="stat-value">'+(p.soldeConges||0)+'</div><div class="stat-label">Jours restants</div></div>';
-    html += '<div class="stat-card"><div class="stat-value">'+(p.soldeInitial||30)+'</div><div class="stat-label">Allocation annuelle</div></div>';
-    html += '</div></div>';
+    html += '<div class="card"><div class="card-header"><h2 class="card-title">Solde de Conges</h2></div>';
+    html += '<div id="profil-solde-detail"><div style="text-align:center;padding:20px;"><div class="spinner"></div></div></div></div>';
 
     html += '<div class="card"><div class="card-header"><h2 class="card-title">Demandes de documents RH</h2><button class="btn btn-primary btn-sm" onclick="showDocRequestModal()">+ Demander un document</button></div>';
     html += '<div id="profil-doc-requests"><div style="text-align:center;padding:20px;"><div class="spinner"></div></div></div></div>';
 
     html += '<div id="profil-documents"></div>';
     c.innerHTML = html;
+
+    serverCall('server_getBalanceDetail').then(function(bd) {
+      var sh = '<div class="stats-grid">';
+      if (bd) {
+        sh += '<div class="stat-card"><div class="stat-value">' + bd.disponible + '</div><div class="stat-label">Jours disponibles</div></div>';
+        sh += '<div class="stat-card"><div class="stat-value">' + bd.acquis + '</div><div class="stat-label">Acquis (' + bd.moisTravailles + ' mois x ' + bd.tauxMensuel + ')</div></div>';
+        sh += '<div class="stat-card"><div class="stat-value">' + bd.consomme + '</div><div class="stat-label">Consommes</div></div>';
+        sh += '<div class="stat-card"><div class="stat-value">' + bd.soldeAnnuel + '</div><div class="stat-label">Allocation annuelle</div></div>';
+      } else {
+        sh += '<div class="stat-card"><div class="stat-value">'+(p.soldeConges||0)+'</div><div class="stat-label">Jours restants</div></div>';
+        sh += '<div class="stat-card"><div class="stat-value">'+(p.soldeInitial||30)+'</div><div class="stat-label">Allocation annuelle</div></div>';
+      }
+      sh += '</div>';
+      document.getElementById('profil-solde-detail').innerHTML = sh;
+    }).catch(function(){ document.getElementById('profil-solde-detail').innerHTML = ''; });
 
     serverCall('server_getMyDocumentRequests').then(function(reqs) {
       var drHtml;
@@ -695,10 +725,15 @@ function adminLoadSoldes() {
   var ct = document.getElementById('admin-tab-content');
   ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
   serverCall('server_getTeamBalances').then(function(b) {
-    var html = '<div class="table-responsive"><table class="table"><thead><tr><th>Matricule</th><th>Nom</th><th>Prenom</th><th>Dept</th><th>Solde</th><th>Allocation</th></tr></thead><tbody>';
+    var html = '<div class="alert alert-info mb-16">Acquisition progressive : 2,5 jours/mois. Le solde disponible = jours acquis au prorata - jours consommes.</div>';
+    html += '<div class="table-responsive"><table class="table"><thead><tr><th>Matricule</th><th>Nom</th><th>Prenom</th><th>Dept</th><th>Disponible</th><th>Acquis</th><th>Consomme</th><th>Annuel</th></tr></thead><tbody>';
     for (var i=0;i<b.length;i++) {
       var sc = b[i].soldeConges<=5?' style="color:var(--color-danger);font-weight:700;"':'';
-      html += '<tr><td>'+escapeHtml(b[i].matricule)+'</td><td>'+escapeHtml(b[i].nom)+'</td><td>'+escapeHtml(b[i].prenom)+'</td><td>'+escapeHtml(b[i].departement)+'</td><td'+sc+'>'+(b[i].soldeConges||0)+'</td><td>'+(b[i].soldeInitial||30)+'</td></tr>';
+      html += '<tr><td>'+escapeHtml(b[i].matricule)+'</td><td>'+escapeHtml(b[i].nom)+'</td><td>'+escapeHtml(b[i].prenom)+'</td><td>'+escapeHtml(b[i].departement)+'</td>';
+      html += '<td'+sc+'>'+(b[i].soldeConges||0)+'</td>';
+      html += '<td>'+(b[i].acquis||0)+'</td>';
+      html += '<td>'+(b[i].consomme||0)+'</td>';
+      html += '<td>'+(b[i].soldeInitial||30)+'</td></tr>';
     }
     html += '</tbody></table></div>';
     ct.innerHTML = html;

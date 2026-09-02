@@ -143,6 +143,14 @@ function server_getLeaveBalance() {
 }
 
 /**
+ * Retourne le detail du solde au prorata (acquis, consomme, disponible)
+ */
+function server_getBalanceDetail() {
+  var profile = assertAuthenticated();
+  return LeaveCounter_getBalanceDetail(profile.email);
+}
+
+/**
  * Retourne la liste des employes (admin uniquement)
  */
 function server_getEmployeeList() {
