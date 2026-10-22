@@ -105,26 +105,38 @@ function canActOnRequest(requestRow, actionKey, userProfile) {
     case ACTIONS.APPROVE_N1:
     case ACTIONS.REJECT_N1:
       if (currentStatut !== STATUS.SOUMIS) return false;
-      // DG peut approuver/rejeter n'importe quelle demande
       if (role === ROLES.DIRECTEUR_GENERAL) return true;
-      // DC peut approuver/rejeter toute demande d'agence (y compris chefs d'agence)
       if (role === ROLES.DIRECTEUR_CLIENTELE) {
         var agence = String(requestRow[COL_DEMANDES.AGENCE] || '');
         return agence !== '';
       }
-      // N+1 classique
-      return (role === ROLES.CHEF_AGENCE || role === ROLES.CHEF_AGENCE_SENIOR || role === ROLES.CHEF_DEPARTEMENT) &&
-             requestRow[COL_DEMANDES.MANAGER_EMAIL].toLowerCase() === email.toLowerCase();
+      var managerEmailVal = String(requestRow[COL_DEMANDES.MANAGER_EMAIL] || '').trim().toLowerCase();
+      if (!managerEmailVal) return false;
+      if (managerEmailVal === email.toLowerCase()) {
+        return role === ROLES.CHEF_AGENCE || role === ROLES.CHEF_AGENCE_SENIOR ||
+               role === ROLES.CHEF_DEPARTEMENT || role === ROLES.RH;
+      }
+      if ((role === ROLES.CHEF_AGENCE || role === ROLES.CHEF_AGENCE_SENIOR) &&
+          userProfile.agence && String(requestRow[COL_DEMANDES.AGENCE] || '') === userProfile.agence &&
+          String(requestRow[COL_DEMANDES.EMAIL_EMP] || '').toLowerCase() !== email.toLowerCase()) {
+        return true;
+      }
+      if (role === ROLES.CHEF_DEPARTEMENT &&
+          userProfile.departement && String(requestRow[COL_DEMANDES.DEPARTEMENT] || '') === userProfile.departement &&
+          String(requestRow[COL_DEMANDES.EMAIL_EMP] || '').toLowerCase() !== email.toLowerCase()) {
+        return true;
+      }
+      return false;
 
     case ACTIONS.AVIS_FAVORABLE:
-    case ACTIONS.AVIS_DEFAVORABLE:
-      // RH donne son avis (decision finale) quand le statut est Approuve N1
       return currentStatut === STATUS.APPROUVE_N1 && role === ROLES.RH;
 
+    case ACTIONS.AVIS_DEFAVORABLE:
+      return (currentStatut === STATUS.SOUMIS || currentStatut === STATUS.APPROUVE_N1) && role === ROLES.RH;
+
     case ACTIONS.ANNULER:
-      // L'employe peut annuler sa demande tant qu'elle est Soumise
       return currentStatut === STATUS.SOUMIS &&
-             requestRow[COL_DEMANDES.EMAIL_EMP].toLowerCase() === email.toLowerCase();
+             String(requestRow[COL_DEMANDES.EMAIL_EMP] || '').trim().toLowerCase() === email.toLowerCase();
 
     default:
       return false;

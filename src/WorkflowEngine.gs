@@ -10,7 +10,7 @@ TRANSITIONS[ACTIONS.APPROVE_N1] = {
   fromStatus: [STATUS.SOUMIS],
   toStatus: STATUS.APPROUVE_N1,
   allowedRoles: [ROLES.CHEF_AGENCE, ROLES.CHEF_AGENCE_SENIOR, ROLES.CHEF_DEPARTEMENT,
-                 ROLES.DIRECTEUR_CLIENTELE, ROLES.DIRECTEUR_GENERAL],
+                 ROLES.RH, ROLES.DIRECTEUR_CLIENTELE, ROLES.DIRECTEUR_GENERAL],
   requiresRelation: 'IS_MANAGER_OR_DIRECTOR',
   timestampCol: COL_DEMANDES.DATE_APPROBATION,
   commentCol: COL_DEMANDES.COMMENT_MANAGER,
@@ -21,7 +21,7 @@ TRANSITIONS[ACTIONS.REJECT_N1] = {
   fromStatus: [STATUS.SOUMIS],
   toStatus: STATUS.REJETE_N1,
   allowedRoles: [ROLES.CHEF_AGENCE, ROLES.CHEF_AGENCE_SENIOR, ROLES.CHEF_DEPARTEMENT,
-                 ROLES.DIRECTEUR_CLIENTELE, ROLES.DIRECTEUR_GENERAL],
+                 ROLES.RH, ROLES.DIRECTEUR_CLIENTELE, ROLES.DIRECTEUR_GENERAL],
   requiresRelation: 'IS_MANAGER_OR_DIRECTOR',
   timestampCol: COL_DEMANDES.DATE_APPROBATION,
   commentCol: COL_DEMANDES.COMMENT_MANAGER,
@@ -45,7 +45,7 @@ TRANSITIONS[ACTIONS.AVIS_FAVORABLE] = {
 };
 
 TRANSITIONS[ACTIONS.AVIS_DEFAVORABLE] = {
-  fromStatus: [STATUS.APPROUVE_N1],
+  fromStatus: [STATUS.SOUMIS, STATUS.APPROUVE_N1],
   toStatus: STATUS.REJETE,
   allowedRoles: [ROLES.RH],
   requiresRelation: null,
@@ -211,25 +211,28 @@ function WorkflowEngine_processTransition(requestId, actionKey, comment, userPro
  * Verifie la relation entre l'utilisateur et la demande
  */
 function checkRelation_(requestRow, userProfile, relationType) {
-  var email = userProfile.email.toLowerCase();
+  var email = userProfile.email.toLowerCase().trim();
 
   switch (relationType) {
     case 'IS_MANAGER':
-      return String(requestRow[COL_DEMANDES.MANAGER_EMAIL]).toLowerCase() === email;
+      return String(requestRow[COL_DEMANDES.MANAGER_EMAIL] || '').toLowerCase().trim() === email;
 
     case 'IS_MANAGER_OR_DIRECTOR':
-      // DG peut approuver n'importe quelle demande
       if (userProfile.role === ROLES.DIRECTEUR_GENERAL) return true;
-      // DC peut approuver toute demande d'agence
       if (userProfile.role === ROLES.DIRECTEUR_CLIENTELE) {
         var agence = String(requestRow[COL_DEMANDES.AGENCE] || '');
         return agence !== '';
       }
-      // N+1 classique
-      return String(requestRow[COL_DEMANDES.MANAGER_EMAIL]).toLowerCase() === email;
+      var mgr = String(requestRow[COL_DEMANDES.MANAGER_EMAIL] || '').toLowerCase().trim();
+      if (mgr && mgr === email) return true;
+      if ((userProfile.role === ROLES.CHEF_AGENCE || userProfile.role === ROLES.CHEF_AGENCE_SENIOR) &&
+          userProfile.agence && String(requestRow[COL_DEMANDES.AGENCE] || '') === userProfile.agence) return true;
+      if (userProfile.role === ROLES.CHEF_DEPARTEMENT &&
+          userProfile.departement && String(requestRow[COL_DEMANDES.DEPARTEMENT] || '') === userProfile.departement) return true;
+      return false;
 
     case 'IS_OWNER':
-      return String(requestRow[COL_DEMANDES.EMAIL_EMP]).toLowerCase() === email;
+      return String(requestRow[COL_DEMANDES.EMAIL_EMP] || '').toLowerCase().trim() === email;
 
     default:
       return false;

@@ -57,136 +57,287 @@ function PdfService_generateAndArchive(requestData, validatorProfile) {
   body.replaceText('{{DATE_GENERATION}}', formatDateTime(now));
   body.replaceText('{{REQUEST_ID}}', requestData.requestId || '');
 
+  // 4. Ajouter le QR code de validation
+  try {
+    var webappUrl = SheetDAO_getConfigValue('WEBAPP_URL') || '';
+    var qrData = webappUrl
+      ? webappUrl + '?page=DetailDemande&id=' + (requestData.requestId || '')
+      : 'BAOBAB BURKINA | Ref: ' + (requestData.requestId || '') + ' | ' +
+        (requestData.prenom || '') + ' ' + (requestData.nom || '') + ' | Valide: ' + formatDate(now);
+
+    var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=' + encodeURIComponent(qrData);
+    var qrResponse = UrlFetchApp.fetch(qrUrl, { muteHttpExceptions: true });
+    if (qrResponse.getResponseCode() === 200) {
+      var qrPara = body.appendParagraph('');
+      qrPara.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+      var qrImage = qrPara.appendInlineImage(qrResponse.getBlob());
+      qrImage.setWidth(100);
+      qrImage.setHeight(100);
+    }
+  } catch (e) {
+    console.log('QR code generation skipped: ' + e.message);
+  }
+
   doc.saveAndClose();
 
-  // 4. Exporter en PDF
+  // 5. Exporter en PDF
   var pdfBlob = DriveApp.getFileById(docCopy.getId()).getAs(MimeType.PDF);
   pdfBlob.setName(fileName + '.pdf');
   var pdfFile = monthFolder.createFile(pdfBlob);
 
-  // 5. Supprimer la copie Doc intermediaire
+  // 6. Supprimer la copie Doc intermediaire
   DriveApp.getFileById(docCopy.getId()).setTrashed(true);
 
-  // 6. Definir les permissions
+  // 7. Definir les permissions
   setArchivePermissions_(pdfFile);
 
   return pdfFile.getUrl();
 }
 
 /**
- * Genere un PDF simple sans template Doc (fallback)
+ * Genere un PDF au format Baobab Burkina avec QR code de validation
  */
 function PdfService_generateSimplePdf(requestData, validatorProfile, archiveRootId) {
   var now = new Date();
-  var institutionName = SheetDAO_getConfigValue('NOM_INSTITUTION') || 'Microfinance SA';
+  var institutionName = SheetDAO_getConfigValue('NOM_INSTITUTION') || 'Baobab Burkina SA';
+  var webappUrl = SheetDAO_getConfigValue('WEBAPP_URL') || '';
+  var fileName = requestData.matricule + '_' + (requestData.nom || '') + '_' + formatDateISO(now);
 
-  var htmlContent = '<!DOCTYPE html><html><head><style>' +
-    'body{font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:40px;color:#333;}' +
-    'h1{text-align:center;color:#1a56db;font-size:20px;border-bottom:2px solid #1a56db;padding-bottom:10px;}' +
-    'h2{color:#1a56db;font-size:16px;margin-top:24px;}' +
-    'table{width:100%;border-collapse:collapse;margin:12px 0;}' +
-    'td{padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:14px;}' +
-    'td:first-child{color:#6b7280;width:200px;font-weight:500;}' +
-    '.header{text-align:center;margin-bottom:30px;}' +
-    '.header p{margin:4px 0;color:#6b7280;font-size:13px;}' +
-    '.signatures{margin-top:40px;display:flex;justify-content:space-between;}' +
-    '.signature-box{text-align:center;width:30%;}' +
-    '.signature-line{border-top:1px solid #333;margin-top:40px;padding-top:8px;font-size:12px;}' +
-    '.footer{margin-top:40px;text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:12px;}' +
-    '</style></head><body>' +
-    '<div class="header"><h1>' + institutionName + '</h1><p>Societe de Microfinance</p></div>' +
-    '<h1>FICHE DE CONGE VALIDEE</h1>' +
-    '<h2>Informations de l\'employe</h2>' +
-    '<table>' +
-    '<tr><td>Nom et Prenom</td><td>' + (requestData.prenom || '') + ' ' + (requestData.nom || '') + '</td></tr>' +
-    '<tr><td>Matricule</td><td>' + (requestData.matricule || '') + '</td></tr>' +
-    '<tr><td>Poste</td><td>' + (requestData.poste || '') + '</td></tr>' +
-    '<tr><td>Departement</td><td>' + (requestData.departement || '') + '</td></tr>' +
-    '<tr><td>Agence</td><td>' + (requestData.agence || 'Siege') + '</td></tr>' +
-    '</table>' +
-    '<h2>Details du conge</h2>' +
-    '<table>' +
-    '<tr><td>Type de conge</td><td>' + (requestData.typeConge || '') + '</td></tr>' +
-    '<tr><td>Motif</td><td>' + (requestData.motif || 'N/A') + '</td></tr>' +
-    '<tr><td>Date de debut</td><td>' + (requestData.dateDebut || '') + '</td></tr>' +
-    '<tr><td>Date de fin</td><td>' + (requestData.dateFin || '') + '</td></tr>' +
-    '<tr><td>Nombre de jours</td><td>' + (requestData.nbJours || 0) + '</td></tr>' +
-    '</table>' +
-    '<h2>Circuit de validation</h2>' +
-    '<table>' +
-    '<tr><td>Soumis le</td><td>' + (requestData.dateSubmit || '') + '</td></tr>' +
-    '<tr><td>Approuve par (N1)</td><td>' + (requestData.managerName || '') + ' le ' + (requestData.dateApprobation || '') + '</td></tr>' +
-    '<tr><td>Avis RH</td><td>' + (requestData.avisRh || '') + '</td></tr>' +
-    '<tr><td>Commentaire RH</td><td>' + (requestData.commentRh || '') + '</td></tr>' +
-    '<tr><td>Decision finale</td><td>VALIDE le ' + formatDate(now) + '</td></tr>' +
-    '<tr><td>Par</td><td>' + (validatorProfile ? validatorProfile.prenom + ' ' + validatorProfile.nom : '') + '</td></tr>' +
-    '</table>' +
-    '<div style="margin-top:40px;">' +
-    '<table><tr>' +
-    '<td style="width:33%;text-align:center;border:none;"><div style="border-top:1px solid #333;padding-top:8px;margin-top:50px;">Employe</div></td>' +
-    '<td style="width:33%;text-align:center;border:none;"><div style="border-top:1px solid #333;padding-top:8px;margin-top:50px;">Responsable</div></td>' +
-    '<td style="width:33%;text-align:center;border:none;"><div style="border-top:1px solid #333;padding-top:8px;margin-top:50px;">Direction</div></td>' +
-    '</tr></table></div>' +
-    '<div class="footer">Document genere automatiquement le ' + formatDateTime(now) + ' | Reference: ' + (requestData.requestId || '') + '</div>' +
-    '</body></html>';
+  var doc = DocumentApp.create(fileName);
+  var body = doc.getBody();
+  body.setText('');
 
-  // Creer un blob HTML et le convertir en PDF via un Doc temporaire
-  var blob = Utilities.newBlob(htmlContent, MimeType.HTML, 'temp.html');
-  var fileName = 'Conge_' + requestData.matricule + '_' + formatDateISO(now);
+  body.setMarginTop(30);
+  body.setMarginBottom(30);
+  body.setMarginLeft(40);
+  body.setMarginRight(40);
 
+  // --- En-tete: institution ---
+  var headerPara = body.appendParagraph(institutionName);
+  headerPara.setAlignment(DocumentApp.HorizontalAlignment.LEFT);
+  headerPara.setFontSize(14);
+  headerPara.setBold(true);
+  headerPara.setForegroundColor('#3D0068');
+
+  // --- Titre ---
+  body.appendParagraph('');
+  var typeLabel = requestData.typeConge ? requestData.typeConge.toUpperCase() : 'CONGES PAYES';
+  var titlePara = body.appendParagraph('DEMANDE DE ' + typeLabel);
+  titlePara.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  titlePara.setFontSize(18);
+  titlePara.setBold(true);
+  titlePara.setForegroundColor('#333333');
+
+  var sep = body.appendParagraph('____');
+  sep.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  sep.setForegroundColor('#D4007A');
+  sep.setFontSize(10);
+
+  body.appendParagraph('');
+
+  // --- Matricule ---
+  var matPara = body.appendParagraph('N° Matricule : ' + (requestData.matricule || ''));
+  matPara.setFontSize(11);
+  matPara.setBold(true);
+
+  body.appendParagraph('');
+
+  // --- Table principale (infos employe + cadre RH) ---
+  var mainTable = body.appendTable();
+  mainTable.setBorderWidth(1);
+  mainTable.setBorderColor('#cccccc');
+
+  // Recuperer le solde pour le cadre RH
+  var balanceDetail = null;
+  try {
+    balanceDetail = LeaveCounter_getBalanceDetail(requestData.emailEmp);
+  } catch (e) {}
+  var soldePrecedent = balanceDetail ? balanceDetail.acquis : '-';
+  var soldeRestant = balanceDetail ? balanceDetail.disponible : '-';
+
+  // Ligne 1: Nom + Cadre Reserve RH header
+  var row0 = mainTable.appendTableRow();
+  var cellInfoHeader = row0.appendTableCell();
+  cellInfoHeader.setWidth(320);
+  addCellText_(cellInfoHeader, 'Nom : ' + (requestData.nom || ''), 10, false);
+  addCellText_(cellInfoHeader, '', 2, false);
+  addCellText_(cellInfoHeader, 'Prenom(s) : ' + (requestData.prenom || ''), 10, false);
+  addCellText_(cellInfoHeader, '', 2, false);
+  addCellText_(cellInfoHeader, 'Poste : ' + (requestData.poste || ''), 10, false);
+  addCellText_(cellInfoHeader, '', 2, false);
+  addCellText_(cellInfoHeader, 'Departement : ' + (requestData.departement || ''), 10, false);
+  if (requestData.agence) {
+    addCellText_(cellInfoHeader, '', 2, false);
+    addCellText_(cellInfoHeader, 'Agence : ' + requestData.agence, 10, false);
+  }
+  addCellText_(cellInfoHeader, '', 2, false);
+  addCellText_(cellInfoHeader, 'Nombre de jours demandes : ' + (requestData.nbJours || 0) + ' jours ouvres.', 10, false);
+  addCellText_(cellInfoHeader, '', 2, false);
+  addCellText_(cellInfoHeader, 'Date de Depart : ' + (requestData.dateDebut || ''), 10, false);
+  addCellText_(cellInfoHeader, '', 2, false);
+  addCellText_(cellInfoHeader, 'Date de Reprise : ' + (requestData.dateFin || ''), 10, false);
+
+  // Cadre Reserve RH
+  var cellRH = row0.appendTableCell();
+  cellRH.setWidth(200);
+  cellRH.setBackgroundColor('#f9f8f6');
+  var rhTitle = cellRH.appendParagraph('Cadre Reserve RH');
+  rhTitle.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  rhTitle.setFontSize(10);
+  rhTitle.setBold(true);
+  rhTitle.setForegroundColor('#D4007A');
+
+  var rhTable = cellRH.appendTable();
+  rhTable.setBorderWidth(1);
+  rhTable.setBorderColor('#dddddd');
+  addRhRow_(rhTable, 'Solde Precedent', String(soldePrecedent));
+  addRhRow_(rhTable, 'Nbre de Jours Ouvres Accordes', String(requestData.nbJours || 0));
+  addRhRow_(rhTable, 'Date de Reprise', requestData.dateFin || '');
+  addRhRow_(rhTable, 'Solde Restant', String(soldeRestant));
+
+  body.appendParagraph('');
+
+  // --- Table de validation ---
+  var valTable = body.appendTable();
+  valTable.setBorderWidth(1);
+  valTable.setBorderColor('#cccccc');
+
+  var valRow = valTable.appendTableRow();
+
+  // Colonne: Le demandeur
+  var cellDemandeur = valRow.appendTableCell();
+  cellDemandeur.setWidth(180);
+  var demTitle = cellDemandeur.appendParagraph('Le demandeur');
+  demTitle.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  demTitle.setFontSize(9);
+  demTitle.setBold(true);
+  demTitle.setUnderline(true);
+  addCellText_(cellDemandeur, '', 6, false);
+  addCellText_(cellDemandeur, 'Signature : ' + (requestData.prenom || '') + ' ' + (requestData.nom || ''), 9, false);
+  addCellText_(cellDemandeur, '', 3, false);
+  addCellText_(cellDemandeur, 'Fait le : ' + (requestData.dateSubmit || ''), 9, false);
+
+  // Colonne: Validation N+1
+  var cellN1 = valRow.appendTableCell();
+  cellN1.setWidth(180);
+  var n1Title = cellN1.appendParagraph('Validation du N+1 ou N+2 :');
+  n1Title.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  n1Title.setFontSize(9);
+  n1Title.setBold(true);
+  addCellText_(cellN1, '', 6, false);
+  addCellText_(cellN1, 'Signature : ' + (requestData.managerName || ''), 9, false);
+  addCellText_(cellN1, '', 3, false);
+  addCellText_(cellN1, 'Le, ' + (requestData.dateApprobation || ''), 9, false);
+
+  // Colonne: Validation RH
+  var cellVal = valRow.appendTableCell();
+  cellVal.setWidth(160);
+  cellVal.setBackgroundColor('#f9f8f6');
+  var valTitle = cellVal.appendParagraph('VALIDATION');
+  valTitle.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  valTitle.setFontSize(10);
+  valTitle.setBold(true);
+  addCellText_(cellVal, '', 4, false);
+  var visaPara = cellVal.appendParagraph('Visa : Valide RH');
+  visaPara.setFontSize(10);
+  visaPara.setBold(true);
+  visaPara.setForegroundColor('#D4007A');
+  addCellText_(cellVal, '', 4, false);
+  var lieuDate = 'Ouaga, le ' + formatDate(now);
+  addCellText_(cellVal, lieuDate, 9, false);
+
+  body.appendParagraph('');
+
+  // --- QR Code de validation ---
+  try {
+    var qrData = 'BAOBAB BURKINA SA\n' +
+      'Ref: ' + (requestData.requestId || '') + '\n' +
+      'Employe: ' + (requestData.prenom || '') + ' ' + (requestData.nom || '') + ' (' + (requestData.matricule || '') + ')\n' +
+      'Conge: ' + (requestData.typeConge || '') + '\n' +
+      'Du ' + (requestData.dateDebut || '') + ' au ' + (requestData.dateFin || '') + '\n' +
+      (requestData.nbJours || 0) + ' jours\n' +
+      'Valide le: ' + formatDate(now);
+
+    if (webappUrl) {
+      qrData = webappUrl + '?page=DetailDemande&id=' + (requestData.requestId || '');
+    }
+
+    var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=' + encodeURIComponent(qrData);
+    var qrResponse = UrlFetchApp.fetch(qrUrl, { muteHttpExceptions: true });
+    if (qrResponse.getResponseCode() === 200) {
+      var qrBlob = qrResponse.getBlob();
+      var qrPara = body.appendParagraph('');
+      qrPara.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+      var qrImage = qrPara.appendInlineImage(qrBlob);
+      qrImage.setWidth(100);
+      qrImage.setHeight(100);
+    }
+  } catch (e) {
+    console.log('QR code generation skipped: ' + e.message);
+  }
+
+  body.appendParagraph('');
+
+  // --- Pied de page ---
+  var footer1 = body.appendParagraph('BAOBAB BURKINA SA. 570 AVENUE DE LA NATION 02 BP 5028 OUAGA 02 – CAPITAL. 3 870 150 000 FCFA');
+  footer1.setFontSize(7);
+  footer1.setForegroundColor('#888888');
+  footer1.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+
+  var footer2 = body.appendParagraph('RCCM: BF-OUA-2014-B-5354 / BF OUA 2022 M 2436. REGISTRE SFD: A-13-15-0469. IFU: 00059780T');
+  footer2.setFontSize(7);
+  footer2.setForegroundColor('#888888');
+  footer2.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+
+  var footer3 = body.appendParagraph('Tel. (+226) 25 30 66 66. EMAIL. CONTACTBBF@BAOBABGROUP.COM');
+  footer3.setFontSize(7);
+  footer3.setForegroundColor('#888888');
+  footer3.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+
+  var refPara = body.appendParagraph('Ref: ' + (requestData.requestId || '') + ' | Genere le ' + formatDateTime(now));
+  refPara.setFontSize(6);
+  refPara.setForegroundColor('#aaaaaa');
+  refPara.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+
+  doc.saveAndClose();
+
+  // Exporter en PDF
+  var pdfBlob = DriveApp.getFileById(doc.getId()).getAs(MimeType.PDF);
+  pdfBlob.setName(fileName + '.pdf');
+
+  var pdfFile;
   if (archiveRootId) {
     var rootFolder = DriveApp.getFolderById(archiveRootId);
     var yearFolder = getOrCreateSubfolder_(rootFolder, now.getFullYear().toString());
     var monthFolder = getOrCreateSubfolder_(yearFolder, padMonth(now.getMonth() + 1));
-
-    // Creer un Google Doc temporaire
-    var tempDoc = Drive.Files ? null : DocumentApp.create(fileName + '_temp');
-    // Methode alternative: creer le fichier HTML et l'exporter
-    var htmlFile = monthFolder.createFile(blob);
-
-    // Utiliser le Doc pour conversion
-    var tempDocFile = DocumentApp.create(fileName);
-    var body = tempDocFile.getBody();
-    body.setText(''); // Vider
-    // Inserer le contenu de base
-    body.appendParagraph(institutionName).setHeading(DocumentApp.ParagraphHeading.HEADING1).setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-    body.appendParagraph('FICHE DE CONGE VALIDEE').setHeading(DocumentApp.ParagraphHeading.HEADING2).setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-    body.appendParagraph('');
-    body.appendParagraph('Employe: ' + requestData.prenom + ' ' + requestData.nom);
-    body.appendParagraph('Matricule: ' + requestData.matricule);
-    body.appendParagraph('Poste: ' + requestData.poste);
-    body.appendParagraph('Departement: ' + requestData.departement);
-    body.appendParagraph('Agence: ' + (requestData.agence || 'Siege'));
-    body.appendParagraph('');
-    body.appendParagraph('Type de conge: ' + requestData.typeConge);
-    if (requestData.motif) body.appendParagraph('Motif: ' + requestData.motif);
-    body.appendParagraph('Date de debut: ' + (requestData.dateDebut || ''));
-    body.appendParagraph('Date de fin: ' + (requestData.dateFin || ''));
-    body.appendParagraph('Nombre de jours: ' + requestData.nbJours);
-    body.appendParagraph('');
-    body.appendParagraph('Soumis le: ' + (requestData.dateSubmit || ''));
-    body.appendParagraph('Approuve par: ' + requestData.managerName + ' le ' + (requestData.dateApprobation || ''));
-    body.appendParagraph('Avis RH: ' + (requestData.avisRh || ''));
-    body.appendParagraph('Decision finale: VALIDE le ' + formatDate(now));
-    body.appendParagraph('Par: ' + (validatorProfile ? validatorProfile.prenom + ' ' + validatorProfile.nom : ''));
-    body.appendParagraph('');
-    body.appendParagraph('Reference: ' + requestData.requestId);
-
-    tempDocFile.saveAndClose();
-
-    var pdfBlob = DriveApp.getFileById(tempDocFile.getId()).getAs(MimeType.PDF);
-    pdfBlob.setName(fileName + '.pdf');
-    var pdfFile = monthFolder.createFile(pdfBlob);
-
-    // Nettoyer
-    DriveApp.getFileById(tempDocFile.getId()).setTrashed(true);
-    htmlFile.setTrashed(true);
-
+    pdfFile = monthFolder.createFile(pdfBlob);
     setArchivePermissions_(pdfFile);
-    return pdfFile.getUrl();
+  } else {
+    pdfFile = DriveApp.createFile(pdfBlob);
   }
 
-  return '';
+  DriveApp.getFileById(doc.getId()).setTrashed(true);
+  return pdfFile.getUrl();
+}
+
+function addCellText_(cell, text, fontSize, bold) {
+  var para = cell.appendParagraph(text);
+  para.setFontSize(fontSize);
+  if (bold) para.setBold(true);
+  return para;
+}
+
+function addRhRow_(table, label, value) {
+  var row = table.appendTableRow();
+  var c1 = row.appendTableCell(label);
+  c1.setWidth(110);
+  var p1 = c1.getChild(0).asParagraph();
+  p1.setFontSize(8);
+  var c2 = row.appendTableCell(value);
+  var p2 = c2.getChild(0).asParagraph();
+  p2.setFontSize(10);
+  p2.setBold(true);
+  p2.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
 }
 
 /**

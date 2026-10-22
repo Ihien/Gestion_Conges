@@ -8,7 +8,7 @@
  */
 function NotificationService_onSubmit(requestData, userProfile) {
   var webappUrl = SheetDAO_getConfigValue('WEBAPP_URL');
-  var institutionName = SheetDAO_getConfigValue('NOM_INSTITUTION') || 'Microfinance SA';
+  var institutionName = SheetDAO_getConfigValue('NOM_INSTITUTION') || 'Baobab Burkina';
 
   // Email a l'employe (confirmation)
   sendNotificationEmail_({
@@ -42,7 +42,7 @@ function NotificationService_onSubmit(requestData, userProfile) {
  */
 function NotificationService_onTransition(actionKey, requestData, actorProfile) {
   var webappUrl = SheetDAO_getConfigValue('WEBAPP_URL');
-  var institutionName = SheetDAO_getConfigValue('NOM_INSTITUTION') || 'Microfinance SA';
+  var institutionName = SheetDAO_getConfigValue('NOM_INSTITUTION') || 'Baobab Burkina';
   var hrEmails = SheetDAO_getConfigValue('HR_EMAILS');
 
   switch (actionKey) {
@@ -185,29 +185,43 @@ function sendNotificationEmail_(params) {
 function buildEmailTemplate_(params) {
   var req = params.requestData;
   var statutLabel = req.statut || '';
+  var detailUrl = params.detailUrl || '';
+  var hasValidUrl = detailUrl && detailUrl !== '#';
 
   return '<!DOCTYPE html>' +
-    '<html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f9fafb;padding:20px;">' +
-    '<div style="background:#1a56db;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0;">' +
-    '<h2 style="margin:0;font-size:18px;">' + (params.institutionName || 'Microfinance SA') + '</h2>' +
-    '<p style="margin:4px 0 0;opacity:0.9;font-size:13px;">Gestion des Conges</p>' +
+    '<html><body style="font-family:\'Open Sans\',Arial,sans-serif;max-width:600px;margin:0 auto;background:#f4f3f0;padding:20px;">' +
+    '<div style="background:#3D0068;color:white;padding:20px 24px;border-radius:8px 8px 0 0;">' +
+    '<table style="width:100%;border:none;"><tr>' +
+    '<td style="vertical-align:middle;border:none;padding:0;width:40px;">' +
+    '<div style="width:36px;height:36px;background:#D4007A;border-radius:50%;text-align:center;line-height:36px;font-weight:bold;font-size:16px;color:white;">B</div>' +
+    '</td>' +
+    '<td style="vertical-align:middle;border:none;padding:0 0 0 12px;">' +
+    '<div style="font-size:18px;font-weight:700;margin:0;">Baobab Burkina</div>' +
+    '<div style="font-size:12px;opacity:0.85;margin:2px 0 0;">Systeme d\'Information RH</div>' +
+    '</td></tr></table>' +
     '</div>' +
     '<div style="background:white;padding:24px;border-radius:0 0 8px 8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">' +
-    '<p style="margin:0 0 16px;">Bonjour ' + (params.recipientName || '') + ',</p>' +
-    '<p style="margin:0 0 20px;color:#374151;">' + (params.message || '') + '</p>' +
-    '<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">' +
-    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;width:140px;">Employe</td><td style="padding:8px;font-weight:500;">' + (req.prenom || '') + ' ' + (req.nom || '') + '</td></tr>' +
-    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;">Type</td><td style="padding:8px;">' + (req.typeConge || '') + '</td></tr>' +
-    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;">Du</td><td style="padding:8px;">' + (req.dateDebut || '') + '</td></tr>' +
-    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;">Au</td><td style="padding:8px;">' + (req.dateFin || '') + '</td></tr>' +
-    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#6b7280;">Jours</td><td style="padding:8px;font-weight:600;">' + (req.nbJours || '') + '</td></tr>' +
-    '<tr><td style="padding:8px;color:#6b7280;">Statut</td><td style="padding:8px;font-weight:600;">' + statutLabel + '</td></tr>' +
+    '<p style="margin:0 0 16px;font-size:15px;">Bonjour <strong>' + (params.recipientName || '') + '</strong>,</p>' +
+    '<p style="margin:0 0 20px;color:#374151;font-size:14px;line-height:1.5;">' + (params.message || '') + '</p>' +
+    '<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;background:#f9f8f6;border-radius:6px;">' +
+    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:10px 12px;color:#6b7280;width:140px;">Employe</td><td style="padding:10px 12px;font-weight:600;">' + (req.prenom || '') + ' ' + (req.nom || '') + '</td></tr>' +
+    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:10px 12px;color:#6b7280;">Type</td><td style="padding:10px 12px;">' + (req.typeConge || '') + '</td></tr>' +
+    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:10px 12px;color:#6b7280;">Periode</td><td style="padding:10px 12px;">Du ' + (req.dateDebut || '') + ' au ' + (req.dateFin || '') + '</td></tr>' +
+    '<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:10px 12px;color:#6b7280;">Jours ouvres</td><td style="padding:10px 12px;font-weight:700;color:#3D0068;">' + (req.nbJours || '') + ' jours</td></tr>' +
+    '<tr><td style="padding:10px 12px;color:#6b7280;">Statut</td><td style="padding:10px 12px;"><span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:#D4007A;color:white;">' + statutLabel + '</span></td></tr>' +
     '</table>' +
-    '<div style="text-align:center;margin:24px 0 8px;">' +
-    '<a href="' + (params.detailUrl || '#') + '" style="display:inline-block;background:#1a56db;color:white;padding:10px 24px;text-decoration:none;border-radius:6px;font-weight:500;">' + (params.buttonText || 'Voir la demande') + '</a>' +
-    '</div>' +
+    (hasValidUrl ?
+      '<div style="text-align:center;margin:24px 0 8px;">' +
+      '<a href="' + detailUrl + '" style="display:inline-block;background:#D4007A;color:white;padding:12px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">' + (params.buttonText || 'Voir la demande') + '</a>' +
+      '</div>'
+      :
+      '<div style="text-align:center;margin:24px 0 8px;padding:12px;background:#fff3cd;border-radius:6px;font-size:13px;color:#856404;">' +
+      'Connectez-vous a l\'application SIRH pour voir cette demande.' +
+      '</div>'
+    ) +
     '</div>' +
     '<div style="text-align:center;padding:16px;font-size:11px;color:#9ca3af;">' +
+    'BAOBAB BURKINA SA - 570 Avenue de la Nation 02 BP 5028 Ouaga 02<br>' +
     'Ceci est un message automatique. Merci de ne pas repondre directement.' +
     '</div>' +
     '</body></html>';
