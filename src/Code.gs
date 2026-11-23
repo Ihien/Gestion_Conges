@@ -380,6 +380,38 @@ function server_processDocumentRequest(demandeId, action, notesRh) {
   return DocumentRequestService_process(demandeId, action, notesRh, profile.email);
 }
 
+// ===================================================================
+// EXPORT ET SIMULATION
+// ===================================================================
+
+function server_exportBalancesExcel() {
+  var profile = assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return LeaveCounter_exportBalancesCSV(profile);
+}
+
+function server_runSimulation(params) {
+  assertRole([ROLES.RH, ROLES.DIRECTEUR_GENERAL]);
+  return LeaveCounter_simulateYear(params);
+}
+
+function server_uploadJustificatif(base64Data, fileName, mimeType) {
+  var profile = assertAuthenticated();
+  var decoded = Utilities.base64Decode(base64Data);
+  var blob = Utilities.newBlob(decoded, mimeType, fileName);
+
+  var archiveRootId = SheetDAO_getConfigValue('ARCHIVE_FOLDER_ID');
+  var file;
+  if (archiveRootId) {
+    var rootFolder = DriveApp.getFolderById(archiveRootId);
+    var justifFolder = getOrCreateSubfolder_(rootFolder, 'Justificatifs');
+    var yearFolder = getOrCreateSubfolder_(justifFolder, new Date().getFullYear().toString());
+    file = yearFolder.createFile(blob);
+  } else {
+    file = DriveApp.createFile(blob);
+  }
+  return { success: true, url: file.getUrl(), name: file.getName() };
+}
+
 function server_getDashboardStats() {
   var profile = assertAuthenticated();
   var stats = {};

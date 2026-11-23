@@ -34,7 +34,8 @@ function renderDashboard() {
   var bd = DashboardState.balanceDetail;
   html += '<div class="stats-grid">';
   if (bd) {
-    html += '<div class="stat-card"><div class="stat-value">' + bd.disponible + '</div><div class="stat-label">Jours disponibles</div><div class="text-sm text-muted" style="margin-top:4px;">' + bd.acquis + ' acquis - ' + bd.consomme + ' pris</div></div>';
+    var gainsMensuels = Math.min(bd.moisTravailles * bd.tauxMensuel, bd.soldeAnnuel);
+    html += '<div class="stat-card"><div class="stat-value">' + bd.disponible + '</div><div class="stat-label">Jours disponibles</div><div class="text-sm text-muted" style="margin-top:4px;">' + (bd.soldeDepart || 0) + ' report' + (bd.perteReport > 0 ? ' (-' + bd.perteReport + ')' : '') + ' + ' + gainsMensuels + ' gains - ' + bd.consomme + ' pris</div></div>';
   } else {
     html += '<div class="stat-card"><div class="stat-value">'+(p.soldeConges||0)+'</div><div class="stat-label">Jours de conge restants</div></div>';
   }
@@ -192,9 +193,13 @@ function loadNouvelDemande() {
     html += '<option value="Permission speciale">Permission speciale</option>';
     html += '</select></div>';
     html += '<div class="form-group"><label class="form-label">Solde disponible</label><div class="stat-card" style="padding:8px;text-align:center;"><span class="stat-value" style="font-size:1.5rem;">' + soldeDisponible + '</span><span class="stat-label"> jours</span>';
-    if (bd) html += '<div class="text-sm text-muted" style="margin-top:2px;">' + bd.acquis + ' acquis (' + bd.moisTravailles + ' mois x ' + bd.tauxMensuel + ') - ' + bd.consomme + ' pris</div>';
+    if (bd) { var gm = Math.min(bd.moisTravailles * bd.tauxMensuel, bd.soldeAnnuel); html += '<div class="text-sm text-muted" style="margin-top:2px;">' + (bd.soldeDepart || 0) + ' report' + (bd.perteReport > 0 ? ' (-' + bd.perteReport + ')' : '') + ' + ' + gm + ' gains (' + bd.moisTravailles + 'mois) - ' + bd.consomme + ' pris</div>'; }
     html += '</div></div></div>';
     html += '<div class="form-group hidden" id="motif-group"><label class="form-label">Motif / Justificatif *</label><textarea name="motif" class="form-textarea" placeholder="Precisez le motif ou le justificatif..."></textarea></div>';
+    html += '<div class="form-group hidden" id="justificatif-group"><label class="form-label">Piece justificative</label>';
+    html += '<input type="file" id="justificatif-file" class="form-input" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="onJustificatifSelected(this)">';
+    html += '<div id="justificatif-status" class="text-sm text-muted mt-8"></div>';
+    html += '<input type="hidden" name="justificatifUrl" value=""></div>';
     html += '<div class="form-row"><div class="form-group"><label class="form-label">Date de debut *</label><input type="date" name="dateDebut" class="form-input" onchange="calcDays()"></div>';
     html += '<div class="form-group"><label class="form-label">Date de fin *</label><input type="date" name="dateFin" class="form-input" onchange="calcDays()"></div></div>';
     html += '<div class="form-group"><label class="form-label">Nombre de jours ouvres</label><div id="nb-jours-display" class="alert alert-info" style="display:inline-block;padding:8px 16px;">Selectionnez les dates</div><input type="hidden" name="nbJours" value="0"></div>';
@@ -217,8 +222,30 @@ function formField(label, name, type, value, readonly, placeholder) {
   return h + '></div>';
 }
 
+var JUSTIFICATIF_TYPES = ['Absence exceptionnelle', 'Conge maternite'];
+
 function onTypeCongeChange(val) {
   document.getElementById('motif-group').classList.toggle('hidden', MOTIF_REQUIRED_TYPES.indexOf(val) === -1);
+  document.getElementById('justificatif-group').classList.toggle('hidden', JUSTIFICATIF_TYPES.indexOf(val) === -1);
+}
+
+function onJustificatifSelected(input) {
+  var status = document.getElementById('justificatif-status');
+  var file = input.files[0];
+  if (!file) { status.textContent = ''; return; }
+  if (file.size > 10 * 1024 * 1024) { status.textContent = 'Fichier trop volumineux (max 10 Mo)'; status.style.color = 'var(--color-danger)'; return; }
+  status.textContent = 'Telechargement en cours...'; status.style.color = 'var(--color-info)';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result.split(',')[1];
+    serverCall('server_uploadJustificatif', [base64, file.name, file.type]).then(function(res) {
+      document.querySelector('[name="justificatifUrl"]').value = res.url;
+      status.textContent = 'Fichier telecharge : ' + res.name; status.style.color = 'var(--color-success)';
+    }).catch(function(err) {
+      status.textContent = 'Erreur : ' + err.message; status.style.color = 'var(--color-danger)';
+    });
+  };
+  reader.readAsDataURL(file);
 }
 
 function calcDays() {
@@ -256,7 +283,8 @@ function submitDemande(event) {
     dateDebut: f.querySelector('[name="dateDebut"]').value,
     dateFin: f.querySelector('[name="dateFin"]').value,
     nbJours: parseInt(f.querySelector('[name="nbJours"]').value) || 0,
-    soldeActuel: App._balanceDetail ? App._balanceDetail.disponible : (App.userProfile.soldeConges || 0)
+    soldeActuel: App._balanceDetail ? App._balanceDetail.disponible : (App.userProfile.soldeConges || 0),
+    justificatifUrl: f.querySelector('[name="justificatifUrl"]') ? f.querySelector('[name="justificatifUrl"]').value : ''
   };
   var v = ValidationFormulaire.validateDemandeForm(data);
   if (!v.valid) { ValidationFormulaire.showErrors(v.errors); return; }
@@ -295,6 +323,7 @@ function renderDetail(r) {
   html += buildDetailField('Matricule',r.matricule)+buildDetailField('Email',r.emailEmp)+buildDetailField('Poste',r.poste);
   html += buildDetailField('Departement',r.departement)+buildDetailField('Agence',r.agence||'Siege')+buildDetailField('Type de conge',r.typeConge);
   if (r.motif) html += buildDetailField('Motif',r.motif);
+  if (r.piecesJustificatives) html += '<div class="detail-item"><div class="detail-label">Piece justificative</div><div class="detail-value"><a href="' + escapeHtml(r.piecesJustificatives) + '" target="_blank" class="btn btn-sm btn-outline">Voir le justificatif</a></div></div>';
   html += buildDetailField('Date de debut',formatDateDisplay(r.dateDebut))+buildDetailField('Date de fin',formatDateDisplay(r.dateFin));
   html += buildDetailField('Nombre de jours',r.nbJours)+buildDetailField('Responsable',r.managerName+' ('+r.managerEmail+')');
   html += buildDetailField('Date de soumission',formatDateDisplay(r.dateSubmit));
@@ -588,6 +617,7 @@ function loadMonProfil() {
       var sh = '<div class="stats-grid">';
       if (bd) {
         sh += '<div class="stat-card"><div class="stat-value">' + bd.disponible + '</div><div class="stat-label">Jours disponibles</div></div>';
+        sh += '<div class="stat-card"><div class="stat-value">' + (bd.soldeDepart || 0) + '</div><div class="stat-label">Report' + (bd.perteReport > 0 ? ' <span style="color:var(--color-danger);">(-' + bd.perteReport + ' expire)</span>' : '') + '</div></div>';
         sh += '<div class="stat-card"><div class="stat-value">' + bd.acquis + '</div><div class="stat-label">Acquis (' + bd.moisTravailles + ' mois x ' + bd.tauxMensuel + ')</div></div>';
         sh += '<div class="stat-card"><div class="stat-value">' + bd.consomme + '</div><div class="stat-label">Consommes</div></div>';
         sh += '<div class="stat-card"><div class="stat-value">' + bd.soldeAnnuel + '</div><div class="stat-label">Allocation annuelle</div></div>';
@@ -631,7 +661,7 @@ function showDocRequestModal() {
   html += '<form id="form-doc-request" onsubmit="submitDocRequest(event);return false;">';
   html += '<div class="form-group"><label class="form-label">Type de document *</label><select name="typeDocument" class="form-select" required>';
   html += '<option value="">-- Selectionner --</option>';
-  var docTypes = ['Attestation de travail', 'Certificat de travail', 'Attestation de stage', 'Attestation de presence'];
+  var docTypes = ['Attestation de travail', 'Certificat de travail', 'Attestation de stage', 'Attestation de presence', 'Attestation de reprise de service', 'Certificat de conge maternite', 'Certificat de cessation de service'];
   for (var i = 0; i < docTypes.length; i++) html += '<option value="' + docTypes[i] + '">' + docTypes[i] + '</option>';
   html += '</select></div>';
   html += '<div class="form-group"><label class="form-label">Notes (optionnel)</label><textarea name="notes" class="form-textarea" placeholder="Precisions sur votre demande..."></textarea></div>';
@@ -725,14 +755,19 @@ function adminLoadSoldes() {
   var ct = document.getElementById('admin-tab-content');
   ct.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div></div>';
   serverCall('server_getTeamBalances').then(function(b) {
-    var html = '<div class="alert alert-info mb-16">Acquisition progressive : 2,5 jours/mois. Le solde disponible = jours acquis au prorata - jours consommes.</div>';
-    html += '<div class="table-responsive"><table class="table"><thead><tr><th>Matricule</th><th>Nom</th><th>Prenom</th><th>Dept</th><th>Disponible</th><th>Acquis</th><th>Consomme</th><th>Annuel</th></tr></thead><tbody>';
+    var html = '<div class="flex gap-8 mb-16" style="justify-content:space-between;align-items:center;flex-wrap:wrap;">';
+    html += '<div class="alert alert-info" style="margin:0;flex:1;">Solde = Report (SOLDE_CONGES) - Perte 60j + Gains mensuels (2,5 j/mois) - Consommes</div>';
+    html += '<div class="flex gap-8"><button class="btn btn-primary btn-sm" onclick="exportBalancesExcel()">Exporter Excel</button>';
+    html += '<button class="btn btn-outline btn-sm" onclick="showSimulationModal()">Simulation annuelle</button></div></div>';
+    html += '<div class="table-responsive"><table class="table"><thead><tr><th>Matricule</th><th>Nom</th><th>Prenom</th><th>Dept</th><th>Report</th><th>Perte 60j</th><th>Acquis</th><th>Consomme</th><th>Disponible</th><th>Annuel</th></tr></thead><tbody>';
     for (var i=0;i<b.length;i++) {
       var sc = b[i].soldeConges<=5?' style="color:var(--color-danger);font-weight:700;"':'';
       html += '<tr><td>'+escapeHtml(b[i].matricule)+'</td><td>'+escapeHtml(b[i].nom)+'</td><td>'+escapeHtml(b[i].prenom)+'</td><td>'+escapeHtml(b[i].departement)+'</td>';
-      html += '<td'+sc+'>'+(b[i].soldeConges||0)+'</td>';
+      html += '<td>'+(b[i].soldeDepart||0)+'</td>';
+      html += '<td style="color:var(--color-danger);">'+(b[i].perteReport||0)+'</td>';
       html += '<td>'+(b[i].acquis||0)+'</td>';
       html += '<td>'+(b[i].consomme||0)+'</td>';
+      html += '<td'+sc+'>'+(b[i].soldeConges||0)+'</td>';
       html += '<td>'+(b[i].soldeInitial||30)+'</td></tr>';
     }
     html += '</tbody></table></div>';
@@ -1227,7 +1262,7 @@ function showGenerateDocModal() {
   html += '<div class="form-group"><label class="form-label">Email employe *</label><input type="email" name="emailEmp" class="form-input" required></div>';
   html += '<div class="form-group"><label class="form-label">Type de document *</label><select name="typeDocument" class="form-select" required>';
   html += '<option value="">-- Selectionner --</option>';
-  var docTypes = ['Attestation de travail', 'Certificat de travail', 'Attestation de stage', 'Attestation de presence'];
+  var docTypes = ['Attestation de travail', 'Certificat de travail', 'Attestation de stage', 'Attestation de presence', 'Attestation de reprise de service', 'Certificat de conge maternite', 'Certificat de cessation de service'];
   for (var i = 0; i < docTypes.length; i++) html += '<option value="' + docTypes[i] + '">' + docTypes[i] + '</option>';
   html += '</select></div>';
   html += '<div class="form-group"><label class="form-label">Notes (optionnel)</label><textarea name="notes" class="form-textarea" placeholder="Informations complementaires..."></textarea></div>';
@@ -1252,5 +1287,77 @@ function submitGenerateDoc(event) {
     if (res && res.url) window.open(res.url, '_blank');
     adminLoadDocuments();
   }).catch(function(err) { btn.disabled = false; btn.textContent = 'Generer le document'; showToast('Erreur: ' + err.message, 'error'); });
+}
+
+// =============================================================
+// EXPORT EXCEL ET SIMULATION
+// =============================================================
+function exportBalancesExcel() {
+  showToast('Export en cours...', 'info');
+  serverCall('server_exportBalancesExcel').then(function(res) {
+    if (res && res.url) {
+      showToast('Export termine ! Ouverture du fichier...', 'success');
+      window.open(res.url, '_blank');
+    }
+  }).catch(function(err) { showToast('Erreur export: ' + err.message, 'error'); });
+}
+
+function showSimulationModal() {
+  var html = '<h3 class="modal-title">Simulation annuelle des soldes</h3>';
+  html += '<form id="form-simulation" onsubmit="runSimulation(event);return false;">';
+  html += '<div class="form-row">';
+  html += '<div class="form-group"><label class="form-label">Solde de depart (report)</label><input type="number" name="soldeDepart" class="form-input" value="15" step="0.5"></div>';
+  html += '<div class="form-group"><label class="form-label">Allocation annuelle</label><input type="number" name="soldeAnnuel" class="form-input" value="30"></div>';
+  html += '</div>';
+  html += '<div class="form-group"><label class="form-label">Annee</label><input type="number" name="year" class="form-input" value="' + new Date().getFullYear() + '"></div>';
+  html += '<div class="form-group"><label class="form-label">Conges simules (mois:jours, ex: 4:5,8:10,12:5)</label><input type="text" name="conges" class="form-input" value="4:5,8:10,12:5" placeholder="4:5,8:10,12:5"></div>';
+  html += '<div class="modal-actions"><button type="button" class="btn btn-outline" onclick="forceCloseModal()">Fermer</button>';
+  html += '<button type="submit" class="btn btn-primary" id="btn-simulation">Lancer la simulation</button></div></form>';
+  html += '<div id="simulation-results"></div>';
+  showModal(html);
+}
+
+function runSimulation(event) {
+  event.preventDefault();
+  var f = document.getElementById('form-simulation');
+  var congesStr = f.querySelector('[name="conges"]').value;
+  var conges = [];
+  if (congesStr) {
+    var parts = congesStr.split(',');
+    for (var i = 0; i < parts.length; i++) {
+      var mp = parts[i].trim().split(':');
+      if (mp.length === 2) conges.push({ mois: parseInt(mp[0]), jours: parseInt(mp[1]), type: 'Conges payes' });
+    }
+  }
+  var params = {
+    soldeDepart: parseFloat(f.querySelector('[name="soldeDepart"]').value) || 0,
+    soldeAnnuel: parseInt(f.querySelector('[name="soldeAnnuel"]').value) || 30,
+    year: parseInt(f.querySelector('[name="year"]').value) || new Date().getFullYear(),
+    conges: conges
+  };
+  var btn = document.getElementById('btn-simulation');
+  btn.disabled = true; btn.textContent = 'Calcul...';
+  serverCall('server_runSimulation', params).then(function(res) {
+    btn.disabled = false; btn.textContent = 'Lancer la simulation';
+    var rDiv = document.getElementById('simulation-results');
+    if (!res || !res.simulation) { rDiv.innerHTML = '<div class="alert alert-warning">Pas de resultats</div>'; return; }
+    var p = res.parametres;
+    var sh = '<div class="mt-16"><h4 style="font-size:0.9rem;color:var(--color-gray-700);margin-bottom:8px;">Parametres : Report=' + p.soldeDepart + 'j, Annuel=' + p.soldeAnnuel + 'j, Taux=' + p.tauxMensuel + 'j/mois, Perte=' + p.joursPerdus + 'j apres ' + p.delaiExpiration + 'j</h4>';
+    sh += '<div class="table-responsive"><table class="table" style="font-size:0.85rem;"><thead><tr><th>Mois</th><th>Report</th><th>Perte</th><th>Gains</th><th>Conge pris</th><th>Tot. consomme</th><th>Acquis</th><th>Disponible</th></tr></thead><tbody>';
+    for (var i = 0; i < res.simulation.length; i++) {
+      var s = res.simulation[i];
+      var availStyle = s.disponible <= 5 ? ' style="color:var(--color-danger);font-weight:700;"' : '';
+      sh += '<tr><td>' + escapeHtml(s.moisLabel) + '</td>';
+      sh += '<td>' + s.soldeReportAjuste + '</td>';
+      sh += '<td style="color:var(--color-danger);">' + (s.perteReport > 0 ? '-' + s.perteReport : '0') + '</td>';
+      sh += '<td style="color:var(--color-success);">+' + s.gainsMensuels + '</td>';
+      sh += '<td>' + (s.congesPris > 0 ? '-' + s.congesPris : '0') + '</td>';
+      sh += '<td>' + s.totalConsomme + '</td>';
+      sh += '<td>' + s.acquis + '</td>';
+      sh += '<td' + availStyle + '>' + s.disponible + '</td></tr>';
+    }
+    sh += '</tbody></table></div></div>';
+    rDiv.innerHTML = sh;
+  }).catch(function(err) { btn.disabled = false; btn.textContent = 'Lancer la simulation'; showToast('Erreur: ' + err.message, 'error'); });
 }
 </script>

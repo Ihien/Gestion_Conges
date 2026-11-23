@@ -40,7 +40,8 @@ var COL_DEMANDES = {
   DATE_AVIS_RH: 23,
   DATE_DECISION_FINALE: 24,
   PDF_URL: 25,
-  VALIDATEUR_FINAL_EMAIL: 26
+  VALIDATEUR_FINAL_EMAIL: 26,
+  PIECES_JUSTIFICATIVES: 27
 };
 
 // ===== HEADERS FEUILLE DEMANDES =====
@@ -50,7 +51,7 @@ var HEADERS_DEMANDES = [
   'DATE_DEBUT', 'DATE_FIN', 'NB_JOURS', 'MANAGER_EMAIL', 'MANAGER_NAME',
   'STATUT', 'COMMENT_MANAGER', 'AVIS_RH', 'COMMENT_RH', 'COMMENT_VALIDATEUR',
   'DATE_SUBMIT', 'DATE_APPROBATION', 'DATE_AVIS_RH', 'DATE_DECISION_FINALE',
-  'PDF_URL', 'VALIDATEUR_FINAL_EMAIL'
+  'PDF_URL', 'VALIDATEUR_FINAL_EMAIL', 'PIECES_JUSTIFICATIVES'
 ];
 
 // ===== COLONNES FEUILLE EMPLOYES (indices zero-based, 51 colonnes) =====
@@ -367,7 +368,10 @@ var DOCUMENT_TYPES = [
   'Attestation de travail',
   'Certificat de travail',
   'Attestation de stage',
-  'Attestation de presence'
+  'Attestation de presence',
+  'Attestation de reprise de service',
+  'Certificat de conge maternite',
+  'Certificat de cessation de service'
 ];
 
 // ===== COLONNES FEUILLE DEMANDES DOCUMENTS =====
@@ -397,8 +401,17 @@ var DEMANDE_DOC_STATUS = {
   REJETEE: 'Rejetee'
 };
 
+// Types qui necessitent une piece justificative (upload fichier)
+var LEAVE_TYPES_REQUIRE_JUSTIFICATIF = [
+  LEAVE_TYPES.EXCEPTIONAL, LEAVE_TYPES.MATERNITY
+];
+
 // ===== ACQUISITION CONGES =====
 var TAUX_ACQUISITION_MENSUEL = 2.5;
+
+// Regle de perte des jours de report : 30 jours perdus apres 60 jours dans la nouvelle annee
+var DELAI_EXPIRATION_REPORT = 60;
+var JOURS_PERDUS_REPORT = 30;
 
 // ===== CONFIG DEFAULTS =====
 var DEFAULT_CONFIG = {

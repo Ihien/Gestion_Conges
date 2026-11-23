@@ -67,8 +67,8 @@ TRANSITIONS[ACTIONS.ANNULER] = {
                  ROLES.RH, ROLES.DIRECTEUR_CLIENTELE, ROLES.DIRECTEUR_GENERAL],
   requiresRelation: 'IS_OWNER',
   timestampCol: null,
-  commentCol: null,
-  requireComment: false
+  commentCol: COL_DEMANDES.COMMENT_VALIDATEUR,
+  requireComment: true
 };
 
 /**

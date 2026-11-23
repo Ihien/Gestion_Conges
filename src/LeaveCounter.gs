@@ -1,7 +1,7 @@
 /**
  * LeaveCounter.gs - Gestion des soldes de conges
- * Principe : acquisition progressive de 2,5 jours/mois.
- * Le solde disponible = jours acquis au prorata - jours consommes.
+ * Modele : solde de depart (SOLDE_CONGES) + acquisition mensuelle de 2,5 j/mois
+ * Regle de perte : 30 jours de report perdus apres 60 jours dans la nouvelle annee
  */
 
 /**
@@ -27,8 +27,26 @@ function LeaveCounter_getMonthsWorkedThisYear_(dateEmbauche) {
 }
 
 /**
+ * Calcule la perte de jours de report selon la regle des 60 jours.
+ * Si on est a plus de 60 jours dans l'annee, les jours de report
+ * (solde de depart) sont reduits de 30 jours maximum.
+ */
+function LeaveCounter_getReportLoss_(soldeDepart) {
+  if (soldeDepart <= 0) return 0;
+
+  var now = new Date();
+  var yearStart = new Date(now.getFullYear(), 0, 1);
+  var daysSinceYearStart = Math.floor((now - yearStart) / (24 * 60 * 60 * 1000));
+
+  if (daysSinceYearStart >= DELAI_EXPIRATION_REPORT) {
+    return Math.min(JOURS_PERDUS_REPORT, soldeDepart);
+  }
+  return 0;
+}
+
+/**
  * Calcule le solde acquis au prorata pour un employe.
- * acquis = min(moisTravailles * 2.5, soldeInitial)
+ * acquis = soldeDepart - perte60j + min(moisTravailles * 2.5, soldeInitial)
  */
 function LeaveCounter_getAcquiredBalance(email) {
   var row = SheetDAO_getRowByKey(SHEET_NAMES.EMPLOYES, COL_EMPLOYES.EMAIL, email);
@@ -36,15 +54,20 @@ function LeaveCounter_getAcquiredBalance(email) {
 
   var defaultSolde = parseInt(SheetDAO_getConfigValue('SOLDE_ANNUEL_DEFAUT')) || 30;
   var soldeInitial = parseInt(row[COL_EMPLOYES.SOLDE_INITIAL]) || defaultSolde;
+  var soldeDepart = parseFloat(row[COL_EMPLOYES.SOLDE_CONGES]) || 0;
 
   var dateEmbauche = row[COL_EMPLOYES.DATE_EMBAUCHE];
   if (dateEmbauche && !(dateEmbauche instanceof Date)) {
     dateEmbauche = new Date(dateEmbauche);
   }
 
+  var perte = LeaveCounter_getReportLoss_(soldeDepart);
+  var soldeReportAjuste = soldeDepart - perte;
+
   var mois = LeaveCounter_getMonthsWorkedThisYear_(dateEmbauche);
-  var acquis = Math.min(mois * TAUX_ACQUISITION_MENSUEL, soldeInitial);
-  return acquis;
+  var gainsMensuels = Math.min(mois * TAUX_ACQUISITION_MENSUEL, soldeInitial);
+
+  return soldeReportAjuste + gainsMensuels;
 }
 
 /**
@@ -77,7 +100,6 @@ function LeaveCounter_getConsumedThisYear(email) {
 
 /**
  * Retourne le solde disponible = acquis - consomme.
- * C'est la fonction principale utilisee partout.
  */
 function LeaveCounter_getBalance(email) {
   var acquis = LeaveCounter_getAcquiredBalance(email);
@@ -87,22 +109,27 @@ function LeaveCounter_getBalance(email) {
 }
 
 /**
- * Retourne le detail du solde (acquis, consomme, disponible, mois)
+ * Retourne le detail complet du solde
  */
 function LeaveCounter_getBalanceDetail(email) {
   var row = SheetDAO_getRowByKey(SHEET_NAMES.EMPLOYES, COL_EMPLOYES.EMAIL, email);
-  if (!row) return { acquis: 0, consomme: 0, disponible: 0, moisTravailles: 0, soldeAnnuel: 30 };
+  if (!row) return { acquis: 0, consomme: 0, disponible: 0, moisTravailles: 0, soldeAnnuel: 30, soldeDepart: 0, perteReport: 0 };
 
   var defaultSolde = parseInt(SheetDAO_getConfigValue('SOLDE_ANNUEL_DEFAUT')) || 30;
   var soldeInitial = parseInt(row[COL_EMPLOYES.SOLDE_INITIAL]) || defaultSolde;
+  var soldeDepart = parseFloat(row[COL_EMPLOYES.SOLDE_CONGES]) || 0;
 
   var dateEmbauche = row[COL_EMPLOYES.DATE_EMBAUCHE];
   if (dateEmbauche && !(dateEmbauche instanceof Date)) {
     dateEmbauche = new Date(dateEmbauche);
   }
 
+  var perte = LeaveCounter_getReportLoss_(soldeDepart);
+  var soldeReportAjuste = soldeDepart - perte;
+
   var mois = LeaveCounter_getMonthsWorkedThisYear_(dateEmbauche);
-  var acquis = Math.min(mois * TAUX_ACQUISITION_MENSUEL, soldeInitial);
+  var gainsMensuels = Math.min(mois * TAUX_ACQUISITION_MENSUEL, soldeInitial);
+  var acquis = soldeReportAjuste + gainsMensuels;
   var consumed = LeaveCounter_getConsumedThisYear(email);
   var disponible = Math.max(acquis - consumed, 0);
 
@@ -112,7 +139,9 @@ function LeaveCounter_getBalanceDetail(email) {
     disponible: disponible,
     moisTravailles: mois,
     soldeAnnuel: soldeInitial,
-    tauxMensuel: TAUX_ACQUISITION_MENSUEL
+    tauxMensuel: TAUX_ACQUISITION_MENSUEL,
+    soldeDepart: soldeDepart,
+    perteReport: perte
   };
 }
 
@@ -125,26 +154,18 @@ function LeaveCounter_hasEnoughLeave(email, nbJours) {
 }
 
 /**
- * Deduit des jours du solde (appele lors de la validation)
- * Avec le systeme au prorata, la deduction est tracee par la demande validee.
- * Cette fonction met a jour le champ SOLDE_CONGES pour affichage rapide.
+ * Met a jour le cache de solde apres validation d'un conge.
+ * Le champ SOLDE_CONGES ne change pas (c'est le solde de depart),
+ * seul le calcul dynamique reflète la deduction.
  */
 function LeaveCounter_deductLeave(email, nbJours) {
-  var rowNumber = SheetDAO_getRowNumber(SHEET_NAMES.EMPLOYES, COL_EMPLOYES.EMAIL, email);
-  if (rowNumber === -1) {
-    console.error('LeaveCounter: employe non trouve: ' + email);
-    return;
-  }
-
-  var newBalance = LeaveCounter_getBalance(email);
-
-  var updates = {};
-  updates[COL_EMPLOYES.SOLDE_CONGES] = newBalance;
-  SheetDAO_updateCells(SHEET_NAMES.EMPLOYES, rowNumber, updates);
+  // Pas besoin de modifier SOLDE_CONGES car le solde est calcule dynamiquement.
+  // La deduction est tracee via la demande validee dans la feuille Demandes.
+  Logger.log('Deduction de ' + nbJours + ' jours pour ' + email + ' (tracee via demande validee)');
 }
 
 /**
- * Credite des jours au solde (correction administrative)
+ * Credite des jours au solde de depart (correction administrative)
  */
 function LeaveCounter_creditLeave(email, nbJours) {
   var rowNumber = SheetDAO_getRowNumber(SHEET_NAMES.EMPLOYES, COL_EMPLOYES.EMAIL, email);
@@ -152,11 +173,11 @@ function LeaveCounter_creditLeave(email, nbJours) {
     throw new Error('Employe non trouve: ' + email);
   }
 
-  var currentBalance = parseInt(SheetDAO_getRowByKey(SHEET_NAMES.EMPLOYES, COL_EMPLOYES.EMAIL, email)[COL_EMPLOYES.SOLDE_CONGES]) || 0;
-  var newBalance = currentBalance + parseInt(nbJours);
+  var currentSolde = parseFloat(SheetDAO_getRowByKey(SHEET_NAMES.EMPLOYES, COL_EMPLOYES.EMAIL, email)[COL_EMPLOYES.SOLDE_CONGES]) || 0;
+  var newSolde = currentSolde + parseFloat(nbJours);
 
   var updates = {};
-  updates[COL_EMPLOYES.SOLDE_CONGES] = newBalance;
+  updates[COL_EMPLOYES.SOLDE_CONGES] = newSolde;
   SheetDAO_updateCells(SHEET_NAMES.EMPLOYES, rowNumber, updates);
 }
 
@@ -195,7 +216,9 @@ function LeaveCounter_getTeamBalances(userProfile) {
         soldeConges: detail.disponible,
         acquis: detail.acquis,
         consomme: detail.consomme,
-        soldeInitial: detail.soldeAnnuel
+        soldeInitial: detail.soldeAnnuel,
+        soldeDepart: detail.soldeDepart,
+        perteReport: detail.perteReport
       });
     }
   }
@@ -204,47 +227,91 @@ function LeaveCounter_getTeamBalances(userProfile) {
 }
 
 /**
- * Recalcule le champ SOLDE_CONGES pour tous les employes actifs.
- * A executer periodiquement (mensuel) pour mettre a jour le cache.
+ * Simulation annuelle des changements de solde pour test.
+ * Simule mois par mois pour un employe fictif avec des evenements de conge.
  */
-function LeaveCounter_refreshAllBalances() {
-  var sheet = SheetDAO_getSheet(SHEET_NAMES.EMPLOYES);
-  if (!sheet) return;
+function LeaveCounter_simulateYear(params) {
+  params = params || {};
+  var soldeDepart = params.soldeDepart !== undefined ? params.soldeDepart : 15;
+  var soldeAnnuel = params.soldeAnnuel || 30;
+  var year = params.year || new Date().getFullYear();
+  var congesSimules = params.conges || [
+    { mois: 4, jours: 5, type: 'Conges payes' },
+    { mois: 8, jours: 10, type: 'Conges payes' },
+    { mois: 12, jours: 5, type: 'Conges payes' }
+  ];
 
-  var data = sheet.getDataRange().getValues();
+  var simulation = [];
+  var totalConsomme = 0;
 
-  for (var i = 1; i < data.length; i++) {
-    var actif = data[i][COL_EMPLOYES.ACTIF];
-    if (actif === true || actif === 'TRUE') {
-      var email = data[i][COL_EMPLOYES.EMAIL];
-      if (email) {
-        var balance = LeaveCounter_getBalance(email);
-        sheet.getRange(i + 1, COL_EMPLOYES.SOLDE_CONGES + 1).setValue(balance);
+  for (var m = 1; m <= 12; m++) {
+    var daysSinceYearStart = (m - 1) * 30;
+    var perteReport = 0;
+    if (daysSinceYearStart >= DELAI_EXPIRATION_REPORT && soldeDepart > 0) {
+      perteReport = Math.min(JOURS_PERDUS_REPORT, soldeDepart);
+    }
+    var soldeReportAjuste = soldeDepart - perteReport;
+
+    var gainsMensuels = Math.min(m * TAUX_ACQUISITION_MENSUEL, soldeAnnuel);
+
+    var congesCeMois = 0;
+    for (var c = 0; c < congesSimules.length; c++) {
+      if (congesSimules[c].mois === m) {
+        congesCeMois += congesSimules[c].jours;
       }
     }
+    totalConsomme += congesCeMois;
+
+    var acquis = soldeReportAjuste + gainsMensuels;
+    var disponible = Math.max(acquis - totalConsomme, 0);
+
+    var monthNames = ['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
+    simulation.push({
+      mois: m,
+      moisLabel: monthNames[m - 1] + ' ' + year,
+      soldeDepart: soldeDepart,
+      perteReport: perteReport,
+      soldeReportAjuste: soldeReportAjuste,
+      gainsMensuels: gainsMensuels,
+      congesPris: congesCeMois,
+      totalConsomme: totalConsomme,
+      acquis: acquis,
+      disponible: disponible
+    });
   }
 
-  Logger.log('Soldes recalcules au prorata pour tous les employes actifs.');
+  return {
+    parametres: {
+      soldeDepart: soldeDepart,
+      soldeAnnuel: soldeAnnuel,
+      tauxMensuel: TAUX_ACQUISITION_MENSUEL,
+      delaiExpiration: DELAI_EXPIRATION_REPORT,
+      joursPerdus: JOURS_PERDUS_REPORT,
+      annee: year,
+      congesSimules: congesSimules
+    },
+    simulation: simulation
+  };
 }
 
 /**
- * Reinitialise les soldes en debut d'annee.
- * Remet le compteur a 0 consomme (les demandes de l'annee precedente
- * ne comptent plus). Le champ SOLDE_CONGES est mis a 0 et sera
- * recalcule par le prorata mensuel.
+ * Exporte les soldes de conges au format CSV pour telechargement Excel.
  */
-function LeaveCounter_initializeAnnualBalances() {
-  var sheet = SheetDAO_getSheet(SHEET_NAMES.EMPLOYES);
-  if (!sheet) return;
+function LeaveCounter_exportBalancesCSV(userProfile) {
+  var balances = LeaveCounter_getTeamBalances(userProfile);
 
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    var actif = data[i][COL_EMPLOYES.ACTIF];
-    if (actif === true || actif === 'TRUE') {
-      sheet.getRange(i + 1, COL_EMPLOYES.SOLDE_CONGES + 1).setValue(0);
-    }
+  var csv = 'Matricule;Nom;Prenom;Departement;Agence;Solde Depart;Perte Report;Acquis;Consomme;Disponible;Allocation Annuelle\n';
+  for (var i = 0; i < balances.length; i++) {
+    var b = balances[i];
+    csv += [
+      b.matricule, b.nom, b.prenom, b.departement, b.agence || 'Siege',
+      b.soldeDepart || 0, b.perteReport || 0, b.acquis || 0,
+      b.consomme || 0, b.soldeConges || 0, b.soldeInitial || 30
+    ].join(';') + '\n';
   }
 
-  Logger.log('Soldes annuels reinitialises. Le prorata mensuel demarre.');
+  var blob = Utilities.newBlob(csv, 'text/csv', 'Soldes_Conges_' + formatDateISO(new Date()) + '.csv');
+  var file = DriveApp.createFile(blob);
+  var url = file.getUrl();
+  return { success: true, url: url, fileName: file.getName() };
 }

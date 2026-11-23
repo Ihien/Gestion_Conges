@@ -186,7 +186,8 @@ function buildRequestObject(rowArray) {
     dateAvisRh: safeDate(rowArray[COL_DEMANDES.DATE_AVIS_RH]),
     dateDecisionFinale: safeDate(rowArray[COL_DEMANDES.DATE_DECISION_FINALE]),
     pdfUrl: rowArray[COL_DEMANDES.PDF_URL] || '',
-    validateurFinalEmail: rowArray[COL_DEMANDES.VALIDATEUR_FINAL_EMAIL] || ''
+    validateurFinalEmail: rowArray[COL_DEMANDES.VALIDATEUR_FINAL_EMAIL] || '',
+    piecesJustificatives: rowArray[COL_DEMANDES.PIECES_JUSTIFICATIVES] || ''
   };
 }
 

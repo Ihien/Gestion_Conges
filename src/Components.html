@@ -103,7 +103,7 @@ function showActionModal(actionKey, requestId) {
     'ANNULER':         {title:'Annuler la demande',          btnText:'Confirmer l\'annulation',btnClass:'btn-danger'}
   };
   var c = cfg[actionKey] || {title:'Confirmer',btnText:'Confirmer',btnClass:'btn-primary'};
-  var commentRequired = ['REJECT_N1','AVIS_DEFAVORABLE'].indexOf(actionKey) !== -1;
+  var commentRequired = ['REJECT_N1','AVIS_DEFAVORABLE','ANNULER'].indexOf(actionKey) !== -1;
 
   var html = '<h3 class="modal-title">' + c.title + '</h3>';
   html += '<div class="form-group"><label class="form-label">Commentaire' + (commentRequired ? ' (obligatoire)' : ' (optionnel)') + '</label>';

@@ -99,6 +99,7 @@ function LeaveService_submitRequest(formData, userProfile) {
   row[COL_DEMANDES.DATE_DECISION_FINALE] = '';
   row[COL_DEMANDES.PDF_URL] = '';
   row[COL_DEMANDES.VALIDATEUR_FINAL_EMAIL] = '';
+  row[COL_DEMANDES.PIECES_JUSTIFICATIVES] = sanitizeInput(formData.justificatifUrl || '');
 
   // Sauvegarder
   SheetDAO_appendRow(SHEET_NAMES.DEMANDES, row);

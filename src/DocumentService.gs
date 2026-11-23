@@ -32,6 +32,15 @@ function DocumentService_generate(emailEmp, typeDocument, notes, creatorEmail) {
     case 'Attestation de presence':
       content = buildAttestationPresence_(profile, institutionName, now);
       break;
+    case 'Attestation de reprise de service':
+      content = buildAttestationReprise_(profile, institutionName, now);
+      break;
+    case 'Certificat de conge maternite':
+      content = buildCertificatMaternite_(profile, institutionName, now);
+      break;
+    case 'Certificat de cessation de service':
+      content = buildCertificatCessation_(profile, institutionName, now);
+      break;
     default:
       throw new Error('Generateur non disponible pour: ' + typeDocument);
   }
@@ -390,5 +399,77 @@ function buildDocRequestObject_(rowArray) {
     prenom: '',
     departement: '',
     matricule: ''
+  };
+}
+
+// ===================================================================
+// GENERATEURS SUPPLEMENTAIRES
+// ===================================================================
+
+function buildAttestationReprise_(p, inst, now) {
+  var civilite = p.genre === 'Masculin' ? 'M. ' : p.genre === 'Feminin' ? 'Mme ' : 'M./Mme ';
+  return {
+    title: 'ATTESTATION DE REPRISE DE SERVICE',
+    body: 'Je soussigne(e), agissant en qualite de Directeur General de ' + inst + ', ' +
+      'atteste par la presente que :\n\n' +
+      civilite + p.prenom + ' ' + p.nom + '\n' +
+      'Matricule : ' + (p.matriculeBbf || p.matricule) + '\n' +
+      'Poste : ' + (p.poste || '___________') + '\n' +
+      'Departement : ' + (p.departement || '___________') + '\n' +
+      (p.agence ? 'Agence : ' + p.agence + '\n' : '') +
+      '\n' +
+      'A effectivement repris service a son poste de travail a compter du ' + formatDate(now) + ', ' +
+      'apres une periode de conge/absence.\n\n' +
+      'L\'interesse(e) est en activite reguliere au sein de notre institution.\n\n' +
+      'La presente attestation est delivree a l\'interesse(e) pour servir et valoir ce que de droit.'
+  };
+}
+
+function buildCertificatMaternite_(p, inst, now) {
+  return {
+    title: 'CERTIFICAT DE CONGE DE MATERNITE',
+    body: 'Je soussigne(e), agissant en qualite de Directeur General de ' + inst + ', ' +
+      'certifie par la presente que :\n\n' +
+      'Mme ' + p.prenom + ' ' + p.nom + '\n' +
+      'Matricule : ' + (p.matriculeBbf || p.matricule) + '\n' +
+      (p.numCnss ? 'CNSS N° : ' + p.numCnss + '\n' : '') +
+      'Poste : ' + (p.poste || '___________') + '\n' +
+      'Departement : ' + (p.departement || '___________') + '\n' +
+      (p.agence ? 'Agence : ' + p.agence + '\n' : '') +
+      '\n' +
+      'Beneficie d\'un conge de maternite conformement aux dispositions du Code du Travail ' +
+      'du Burkina Faso et de la Convention Collective applicable.\n\n' +
+      'Duree du conge : Quatorze (14) semaines, soit quatre-vingt-dix-huit (98) jours calendaires.\n' +
+      'Date de debut du conge : ___________\n' +
+      'Date prevue de reprise : ___________\n\n' +
+      'Pendant la duree de ce conge, l\'interessee conserve l\'integralite de ses droits lies a son ' +
+      'contrat de travail.\n\n' +
+      'Le present certificat est etabli pour servir et valoir ce que de droit, notamment aupres ' +
+      'de la Caisse Nationale de Securite Sociale (CNSS) pour le versement des prestations de maternite.'
+  };
+}
+
+function buildCertificatCessation_(p, inst, now) {
+  var civilite = p.genre === 'Masculin' ? 'M. ' : p.genre === 'Feminin' ? 'Mme ' : 'M./Mme ';
+  return {
+    title: 'CERTIFICAT DE CESSATION DE SERVICE',
+    body: 'Je soussigne(e), agissant en qualite de Directeur General de ' + inst + ', ' +
+      'certifie par la presente que :\n\n' +
+      civilite + p.prenom + ' ' + p.nom + '\n' +
+      'Matricule : ' + (p.matriculeBbf || p.matricule) + '\n' +
+      (p.dateNaissance ? 'Ne(e) le : ' + p.dateNaissance + (p.lieuNaissance ? ' a ' + p.lieuNaissance : '') + '\n' : '') +
+      (p.nationalite ? 'Nationalite : ' + p.nationalite + '\n' : '') +
+      (p.numCni ? 'CNI N° : ' + p.numCni + '\n' : '') +
+      (p.numCnss ? 'CNSS N° : ' + p.numCnss + '\n' : '') +
+      '\n' +
+      'A ete employe(e) au sein de ' + inst + ' du ' + (p.dateEmbauche || '___________') +
+      ' au ' + formatDate(now) + ', en qualite de ' + (p.poste || '___________') + ', ' +
+      'au departement ' + (p.departement || '___________') + '.\n\n' +
+      'Motif de cessation : ___________\n\n' +
+      civilite + p.nom + ' a cesse ses fonctions a la date du ' + formatDate(now) + ' et est ' +
+      'libre de tout engagement envers ' + inst + '.\n\n' +
+      'Solde de tout compte : Un solde de tout compte sera etabli conformement a la reglementation ' +
+      'en vigueur.\n\n' +
+      'Le present certificat est etabli pour servir et valoir ce que de droit.'
   };
 }
